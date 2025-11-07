@@ -260,58 +260,45 @@ const FleetMap = ({ vehicles = [], drivers = [], telemetryRecords = [] }) => {
     return R * c;
   };
 
-  // Get vehicle locations from telemetry data or use real/demo data
-  const vehicleLocations =
-    telemetryRecords && telemetryRecords.length > 0
-      ? telemetryRecords
-          .filter((t) => t.latitude && t.longitude)
-          .map((t) => {
-            const vehicle = vehicles.find((v) => v.id === t.vehicleId);
-            const driver = drivers.find((d) => d.id === t.driverId);
+  // Get vehicle locations from database (fixed positions)
+  const vehicleLocations = vehicles.map((vehicle, index) => {
+    // Always use stored coordinates from database
+    let lat, lng;
+    if (vehicle.latitude && vehicle.longitude) {
+      // Use fixed coordinates from vehicle data
+      lat = parseFloat(vehicle.latitude);
+      lng = parseFloat(vehicle.longitude);
+    } else {
+      // Fallback to demo data if no coordinates stored
+      const offsetLat = (Math.random() - 0.5) * 0.1;
+      const offsetLng = (Math.random() - 0.5) * 0.1;
+      lat = defaultCenter.lat + offsetLat;
+      lng = defaultCenter.lng + offsetLng;
+    }
 
-            return {
-              id: t.id,
-              position: [parseFloat(t.latitude), parseFloat(t.longitude)],
-              vehicleInfo: vehicle,
-              driverInfo: driver,
-              speed: t.speed,
-              recordedAt: t.recordedAt,
-            };
-          })
-      : vehicles.map((vehicle, index) => {
-          // Use real coordinates if driver updated them, otherwise use demo data
-          let lat, lng;
-          if (vehicle.latitude && vehicle.longitude) {
-            // Use real coordinates from vehicle data
-            lat = parseFloat(vehicle.latitude);
-            lng = parseFloat(vehicle.longitude);
-          } else {
-            // Demo data: Place vehicles randomly around Chennai
-            const offsetLat = (Math.random() - 0.5) * 0.1;
-            const offsetLng = (Math.random() - 0.5) * 0.1;
-            lat = defaultCenter.lat + offsetLat;
-            lng = defaultCenter.lng + offsetLng;
-          }
+    // Find associated driver for this vehicle
+    const driver = drivers.find((d) => d.assignedVehicle === vehicle.id);
 
-          return {
-            id: vehicle.id || `vehicle-${index}`,
-            position: [lat, lng],
-            vehicleInfo: vehicle,
-            driverInfo: drivers[index] || null,
-            speed: Math.floor(Math.random() * 80) + 20,
-            recordedAt: new Date().toISOString(),
-          };
-        });
+    return {
+      id: vehicle.id || `vehicle-${index}`,
+      position: [lat, lng],
+      vehicleInfo: vehicle,
+      driverInfo: driver || null,
+      speed: 0, // Static position, no speed
+      recordedAt: new Date().toISOString(),
+    };
+  });
 
-  // Get driver locations (use real coordinates when available)
+  // Get driver locations from database (fixed positions)
   const driverLocations = drivers.map((driver, index) => {
+    // Always use stored coordinates from database
     let lat, lng;
     if (driver.latitude && driver.longitude) {
-      // Use real coordinates updated by driver
+      // Use fixed coordinates from driver data
       lat = parseFloat(driver.latitude);
       lng = parseFloat(driver.longitude);
     } else {
-      // Demo data: Place drivers randomly around Chennai
+      // Fallback to demo data if no coordinates stored
       const offsetLat = (Math.random() - 0.5) * 0.08;
       const offsetLng = (Math.random() - 0.5) * 0.08;
       lat = defaultCenter.lat + offsetLat;
