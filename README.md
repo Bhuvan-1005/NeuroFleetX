@@ -141,8 +141,12 @@ mongosh < mongodb-init.js
 
 ```bash
 cd Backend-Java
-# Windows
-mvnw.cmd spring-boot:run
+
+# Windows (PowerShell) - Recommended
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-24"; .\mvnw.cmd spring-boot:run
+
+# Windows (Command Prompt)
+set JAVA_HOME="C:\Program Files\Java\jdk-24" && mvnw.cmd spring-boot:run
 
 # Linux/Mac
 ./mvnw spring-boot:run
@@ -201,7 +205,13 @@ Backend-Java/
 ### 🏗️ Build Commands
 
 ```bash
-# Development mode
+# Development mode (Windows PowerShell)
+$env:JAVA_HOME = "C:\Program Files\Java\jdk-24"; .\mvnw.cmd spring-boot:run
+
+# Development mode (Windows Command Prompt)
+set JAVA_HOME="C:\Program Files\Java\jdk-24" && mvnw.cmd spring-boot:run
+
+# Development mode (Linux/Mac)
 ./mvnw spring-boot:run
 
 # Build JAR
@@ -310,6 +320,7 @@ The `mongodb-init.js` script provides sample data:
 ### 🔐 Authentication Endpoints
 
 #### Register User
+
 ```http
 POST /api/auth/signup
 Content-Type: application/json
@@ -321,9 +332,11 @@ Content-Type: application/json
   "role": "DRIVER"
 }
 ```
+
 **Response**: `201 Created` - Automatically creates User + Driver entities
 
 #### Login
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -333,7 +346,9 @@ Content-Type: application/json
   "password": "securePass123"
 }
 ```
+
 **Response**: `200 OK` with JWT token
+
 ```json
 {
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -344,46 +359,47 @@ Content-Type: application/json
 
 ### 🚗 Vehicle Endpoints
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| `GET` | `/api/vehicles` | List all vehicles | ✅ |
-| `POST` | `/api/vehicles` | Create new vehicle | ✅ Admin |
-| `PUT` | `/api/vehicles/{id}` | Update vehicle | ✅ Admin |
-| `DELETE` | `/api/vehicles/{id}` | Delete vehicle | ✅ Admin |
+| Method   | Endpoint             | Description        | Auth Required |
+| -------- | -------------------- | ------------------ | ------------- |
+| `GET`    | `/api/vehicles`      | List all vehicles  | ✅            |
+| `POST`   | `/api/vehicles`      | Create new vehicle | ✅ Admin      |
+| `PUT`    | `/api/vehicles/{id}` | Update vehicle     | ✅ Admin      |
+| `DELETE` | `/api/vehicles/{id}` | Delete vehicle     | ✅ Admin      |
 
 ### 👥 Driver Endpoints
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| `GET` | `/api/drivers` | List all drivers | ✅ Fleet Manager |
-| `GET` | `/api/drivers/{id}` | Get driver details | ✅ |
-| `PUT` | `/api/drivers/{id}/assign-vehicle` | Assign vehicle to driver | ✅ Fleet Manager |
+| Method | Endpoint                           | Description              | Auth Required    |
+| ------ | ---------------------------------- | ------------------------ | ---------------- |
+| `GET`  | `/api/drivers`                     | List all drivers         | ✅ Fleet Manager |
+| `GET`  | `/api/drivers/{id}`                | Get driver details       | ✅               |
+| `PUT`  | `/api/drivers/{id}/assign-vehicle` | Assign vehicle to driver | ✅ Fleet Manager |
 
 ### 📊 Telemetry Endpoints
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| `POST` | `/api/telemetry` | Submit telemetry data | ✅ Driver |
-| `GET` | `/api/telemetry/vehicle/{id}` | Get vehicle telemetry | ✅ |
-| `GET` | `/api/telemetry/recent` | Get recent telemetry | ✅ Fleet Manager |
+| Method | Endpoint                      | Description           | Auth Required    |
+| ------ | ----------------------------- | --------------------- | ---------------- |
+| `POST` | `/api/telemetry`              | Submit telemetry data | ✅ Driver        |
+| `GET`  | `/api/telemetry/vehicle/{id}` | Get vehicle telemetry | ✅               |
+| `GET`  | `/api/telemetry/recent`       | Get recent telemetry  | ✅ Fleet Manager |
 
 ### 🔔 Notification Endpoints
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| `GET` | `/api/notifications` | Get user notifications | ✅ |
-| `POST` | `/api/notifications` | Create notification | ✅ Admin |
-| `PUT` | `/api/notifications/{id}/read` | Mark as read | ✅ |
+| Method | Endpoint                       | Description            | Auth Required |
+| ------ | ------------------------------ | ---------------------- | ------------- |
+| `GET`  | `/api/notifications`           | Get user notifications | ✅            |
+| `POST` | `/api/notifications`           | Create notification    | ✅ Admin      |
+| `PUT`  | `/api/notifications/{id}/read` | Mark as read           | ✅            |
 
 ---
 
 ## 🔐 Authentication & Security
 
 ### 🔑 JWT Implementation
+
 ```javascript
 // Frontend - Axios Interceptor
-axios.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -392,6 +408,7 @@ axios.interceptors.request.use(config => {
 ```
 
 ### 🛡️ Security Features
+
 - ✅ **JWT-based authentication** with configurable expiry
 - ✅ **Role-based access control** (RBAC)
 - ✅ **CORS configuration** for cross-origin requests
@@ -399,7 +416,9 @@ axios.interceptors.request.use(config => {
 - ✅ **Token validation** on every protected endpoint
 
 ### 🔒 CORS Configuration
+
 Located in `Backend-Java/src/main/java/com/neurofleetx/config/CorsConfig.java`
+
 ```java
 // Default allowed origins
 http://localhost:3000  // Development
@@ -413,18 +432,21 @@ https://your-domain.com  // Production
 ### 📝 Code Conventions
 
 #### Frontend
+
 - **State Management**: Use `DataContext` for shared data (vehicles, drivers)
 - **Component Structure**: Functional components with React Hooks
 - **API Calls**: Centralized in `services/api.js`
 - **Styling**: Tailwind CSS utility classes preferred
 
 #### Backend
+
 - **Architecture**: MVC pattern (Controller → Service → Repository)
 - **Error Handling**: Custom exceptions with meaningful messages
 - **Logging**: Comprehensive logging using SLF4J
 - **Testing**: Unit tests for services, integration tests for controllers
 
 ### 🔄 Workflow Tips
+
 1. **Driver Signup**: Automatically creates both `User` and `Driver` entities
 2. **Trip Controls**: Status updates trigger GPS tracking on/off
 3. **Vehicle Assignment**: Real-time sync between driver and fleet manager views
@@ -437,38 +459,48 @@ https://your-domain.com  // Production
 ### ❌ Common Issues & Solutions
 
 #### 🔴 ERR_CONNECTION_REFUSED
+
 **Problem**: Frontend can't connect to backend
 **Solution**:
+
 1. Verify backend is running: `http://localhost:8080/actuator/health`
 2. Check CORS configuration in `CorsConfig.java`
 3. Ensure `REACT_APP_API_URL` in frontend `.env` is correct
 
 #### 🔴 Vehicles Not Loading
+
 **Problem**: Vehicle dropdown is empty
 **Solution**:
+
 1. Test API endpoint: `GET http://localhost:8080/api/vehicles`
 2. Check MongoDB connection in `application.properties`
 3. Verify JWT token is being sent in request headers
 4. Run `mongodb-init.js` to seed sample vehicles
 
 #### 🔴 Authentication Errors
+
 **Problem**: Login fails or token expired
 **Solution**:
+
 1. Verify JWT secret matches in `application.properties`
 2. Check token expiry settings (default: 24 hours)
 3. Clear localStorage and login again
 4. Ensure password meets minimum requirements
 
 #### 🔴 GPS Tracking Not Working
+
 **Problem**: Location not updating
 **Solution**:
+
 1. Grant browser location permissions
 2. Use HTTPS in production (HTTP geolocation limited)
 3. Check `LocationTracker.js` interval (default: 30s)
 4. Verify trip status is "ACTIVE"
 
 ### 🐛 Debug Mode
+
 Enable verbose logging in `application.properties`:
+
 ```properties
 logging.level.com.neurofleetx=DEBUG
 logging.level.org.springframework.web=DEBUG
@@ -481,6 +513,7 @@ logging.level.org.springframework.web=DEBUG
 We welcome contributions! Here's how you can help:
 
 ### 🌿 Branch Strategy
+
 ```bash
 # Create feature branch
 git checkout -b feature/your-feature-name
@@ -490,6 +523,7 @@ git checkout -b bugfix/issue-description
 ```
 
 ### 📤 Pull Request Process
+
 1. Fork the repository
 2. Create your feature branch
 3. Commit your changes with meaningful messages
@@ -497,6 +531,7 @@ git checkout -b bugfix/issue-description
 5. Open a Pull Request to `master` branch
 
 ### ✅ Contribution Checklist
+
 - [ ] Code follows project style guidelines
 - [ ] All tests pass (`mvnw test` for backend, `npm test` for frontend)
 - [ ] Documentation updated in this `README.md`
@@ -504,6 +539,7 @@ git checkout -b bugfix/issue-description
 - [ ] Commit messages are descriptive
 
 ### 📋 Code Review Guidelines
+
 - Keep PRs focused and small
 - Include screenshots for UI changes
 - Update API documentation for new endpoints
@@ -514,12 +550,14 @@ git checkout -b bugfix/issue-description
 ## 🚀 Deployment
 
 ### 🐳 Docker Deployment (Coming Soon)
+
 ```bash
 # Build and run with Docker Compose
 docker-compose up -d
 ```
 
 ### ☁️ Cloud Deployment Options
+
 - **Frontend**: Vercel, Netlify, AWS Amplify
 - **Backend**: Heroku, AWS EC2, Azure App Service
 - **Database**: MongoDB Atlas (recommended)
@@ -557,6 +595,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 Built with ❤️ by the NeuroFleetX team
 
 ### 🛠️ Technologies Used
+
 - React.js - Frontend framework
 - Spring Boot - Backend framework
 - MongoDB - Database
@@ -565,6 +604,7 @@ Built with ❤️ by the NeuroFleetX team
 - JWT - Authentication
 
 ### 📧 Contact & Support
+
 - **Repository**: [github.com/Bhuvan-1005/NeuroFleetX](https://github.com/Bhuvan-1005/NeuroFleetX)
 - **Issues**: [Report a bug](https://github.com/Bhuvan-1005/NeuroFleetX/issues)
 - **Discussions**: [Join the conversation](https://github.com/Bhuvan-1005/NeuroFleetX/discussions)
