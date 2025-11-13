@@ -10,6 +10,7 @@ const FleetManagerSignup = () => {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    username: "",
     email: "",
     phone: "",
     companyName: "",
@@ -37,9 +38,11 @@ const FleetManagerSignup = () => {
 
     // Prepare data for NeuroFleetX backend
     const fleetManagerData = {
+      username: rawData.username,
       name: `${rawData.firstName} ${rawData.lastName}`,
       email: rawData.email,
       phone: rawData.phone,
+      fleetId: rawData.fleetId,
       password: rawData.password,
       role: "fleet_manager",
     };
@@ -116,6 +119,21 @@ const FleetManagerSignup = () => {
                   placeholder="Last name"
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="username">
+                <i className="fas fa-user-tag"></i> Username
+              </label>
+              <input
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                required
+                placeholder="Choose a username"
+              />
             </div>
 
             <div className="form-group">

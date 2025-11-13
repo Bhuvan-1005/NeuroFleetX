@@ -6,20 +6,23 @@ import Particles from "../components/Particles";
 import Map from "../components/Map";
 import { motion, AnimatePresence } from "framer-motion";
 import { CardSpotlight } from "../components/ui/CardEffects";
-import { vehiclesAPI, driversAPI, authAPI } from "../services/api";
-import "./Dashboard.css";
+import { vehiclesAPI, driversAPI, authAPI, routesAPI } from "../services/api";
 
 const FleetDashboard = () => {
   const { currentUser, logout } = useAuth();
   const { drivers = [], vehicles = [], telemetryRecords = [] } = useData();
 
   const [now, setNow] = useState(new Date());
-  const [, setActiveSection] = useState("overview");
+  const [routes, setRoutes] = useState([]);
 
   // Modal states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showRouteAssignmentModal, setShowRouteAssignmentModal] =
+    useState(false);
+  const [selectedRouteForAssignment, setSelectedRouteForAssignment] =
+    useState(null);
 
   // Form states
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,6 +60,19 @@ const FleetDashboard = () => {
     localStorage.setItem("fleetDashboardSettings", JSON.stringify(settings));
   }, [settings]);
 
+  // Load routes
+  useEffect(() => {
+    const loadRoutes = async () => {
+      try {
+        const response = await routesAPI.getAll();
+        setRoutes(response.data);
+      } catch (error) {
+        console.error("Error loading routes:", error);
+      }
+    };
+    loadRoutes();
+  }, []);
+
   const updateSetting = (key, value) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
@@ -80,37 +96,62 @@ const FleetDashboard = () => {
       id: "overview",
       label: "Overview",
       icon: "fas fa-th-large",
-      onClick: () => setActiveSection("overview"),
+      onClick: () =>
+        document
+          .getElementById("overview")
+          ?.scrollIntoView({ behavior: "smooth" }),
     },
     {
       id: "map",
       label: "Live Map",
       icon: "fas fa-map-marked-alt",
-      onClick: () => setActiveSection("map"),
+      onClick: () =>
+        document.getElementById("map")?.scrollIntoView({ behavior: "smooth" }),
     },
     {
       id: "vehicles",
       label: "Vehicles",
       icon: "fas fa-car",
-      onClick: () => setActiveSection("vehicles"),
+      onClick: () =>
+        document
+          .getElementById("vehicles")
+          ?.scrollIntoView({ behavior: "smooth" }),
     },
     {
       id: "drivers",
       label: "Drivers",
       icon: "fas fa-users",
-      onClick: () => setActiveSection("drivers"),
+      onClick: () =>
+        document
+          .getElementById("drivers")
+          ?.scrollIntoView({ behavior: "smooth" }),
+    },
+    {
+      id: "routes",
+      label: "Routes",
+      icon: "fas fa-route",
+      onClick: () =>
+        document
+          .getElementById("routes")
+          ?.scrollIntoView({ behavior: "smooth" }),
     },
     {
       id: "analytics",
       label: "Analytics",
       icon: "fas fa-chart-line",
-      onClick: () => setActiveSection("analytics"),
+      onClick: () =>
+        document
+          .getElementById("analytics")
+          ?.scrollIntoView({ behavior: "smooth" }),
     },
     {
       id: "settings",
       label: "Settings",
       icon: "fas fa-cog",
-      onClick: () => setActiveSection("settings"),
+      onClick: () =>
+        document
+          .getElementById("settings")
+          ?.scrollIntoView({ behavior: "smooth" }),
     },
   ];
 
@@ -134,7 +175,7 @@ const FleetDashboard = () => {
                 Fleet Dashboard
               </h1>
               <p className="text-slate-400 mt-2">
-                Welcome back, {currentUser?.email || "Manager"}
+                Welcome back, {currentUser?.username || "Manager"}
               </p>
             </div>
             <button
@@ -1027,6 +1068,373 @@ const FleetDashboard = () => {
           </motion.div>
         </section>
 
+        {/* Routes Section */}
+        <section id="routes" className="mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+          >
+            <CardSpotlight className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                    <i className="fas fa-route text-white text-lg"></i>
+                  </div>
+                  <h4 className="text-2xl font-bold text-white">
+                    Route Management
+                  </h4>
+                </div>
+                <button
+                  onClick={() => {
+                    const addRouteSection =
+                      document.getElementById("add-route-form");
+                    if (addRouteSection) {
+                      addRouteSection.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                      });
+                      addRouteSection.classList.add("highlight-pulse");
+                      setTimeout(
+                        () =>
+                          addRouteSection.classList.remove("highlight-pulse"),
+                        2000
+                      );
+                    }
+                  }}
+                  className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all flex items-center gap-2"
+                >
+                  <i className="fas fa-plus"></i>
+                  Create Route
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {routes.length > 0 ? (
+                  routes.map((route) => (
+                    <div
+                      key={route.id}
+                      className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-orange-500 transition-all hover:shadow-lg"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <h5 className="text-white font-bold text-lg">
+                            Route #{route.id}
+                          </h5>
+                          <p className="text-slate-400 text-sm">
+                            {route.startLocation?.address || "Start Location"} →{" "}
+                            {route.endLocation?.address || "End Location"}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            route.status === "assigned"
+                              ? "bg-blue-500/20 text-blue-400"
+                              : route.status === "in_progress"
+                              ? "bg-yellow-500/20 text-yellow-400"
+                              : route.status === "completed"
+                              ? "bg-green-500/20 text-green-400"
+                              : "bg-gray-500/20 text-gray-400"
+                          }`}
+                        >
+                          {route.status || "unassigned"}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center gap-2 text-slate-300 text-sm">
+                          <i className="fas fa-user text-blue-400"></i>
+                          <span>
+                            Driver:{" "}
+                            {route.driverId
+                              ? `Driver #${route.driverId}`
+                              : "Unassigned"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-300 text-sm">
+                          <i className="fas fa-road text-green-400"></i>
+                          <span>
+                            Distance:{" "}
+                            {route.distance ? `${route.distance} km` : "N/A"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-300 text-sm">
+                          <i className="fas fa-clock text-purple-400"></i>
+                          <span>
+                            Duration:{" "}
+                            {route.duration ? `${route.duration} min` : "N/A"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedRouteForAssignment(route);
+                            setShowRouteAssignmentModal(true);
+                          }}
+                          disabled={route.status !== "unassigned"}
+                          className={`flex-1 px-3 py-2 rounded text-sm transition-all ${
+                            route.status === "unassigned"
+                              ? "bg-blue-600 hover:bg-blue-700 text-white"
+                              : "bg-slate-600 text-slate-400 cursor-not-allowed"
+                          }`}
+                        >
+                          <i className="fas fa-user-plus mr-1"></i>
+                          Assign
+                        </button>
+                        <button
+                          onClick={() => {
+                            alert(
+                              `View route details: ${
+                                route.startLocation?.address
+                              } to ${route.endLocation?.address}\nStatus: ${
+                                route.status
+                              }\nDriver: ${
+                                route.driverId || "Unassigned"
+                              }\n\nThis will open route details in production.`
+                            );
+                          }}
+                          className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-sm transition-all"
+                        >
+                          <i className="fas fa-eye mr-1"></i>
+                          View
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Are you sure you want to delete Route #${route.id}?`
+                              )
+                            ) {
+                              alert(
+                                "Route deleted! (API integration required)"
+                              );
+                            }
+                          }}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-all"
+                        >
+                          <i className="fas fa-trash mr-1"></i>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <i className="fas fa-route text-slate-600 text-6xl mb-4"></i>
+                    <p className="text-slate-400 text-lg">
+                      No routes available
+                    </p>
+                    <p className="text-slate-500 text-sm mt-2">
+                      Create your first route to get started
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Add Route Form */}
+              <div
+                id="add-route-form"
+                className="bg-slate-900/50 p-6 rounded-lg border-2 border-dashed border-slate-700 hover:border-orange-500 transition-all"
+              >
+                <h5 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <i className="fas fa-route text-orange-400"></i>
+                  Create New Route
+                </h5>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setIsSubmitting(true);
+                    setSubmitMessage({ type: "", text: "" });
+
+                    const formData = new FormData(e.target);
+                    const routeData = {
+                      startLocation: {
+                        address: formData.get("startAddress"),
+                        latitude: parseFloat(formData.get("startLat")),
+                        longitude: parseFloat(formData.get("startLng")),
+                      },
+                      endLocation: {
+                        address: formData.get("endAddress"),
+                        latitude: parseFloat(formData.get("endLat")),
+                        longitude: parseFloat(formData.get("endLng")),
+                      },
+                      distance: parseFloat(formData.get("distance")) || null,
+                      duration: parseInt(formData.get("duration")) || null,
+                      status: "unassigned",
+                    };
+
+                    try {
+                      await routesAPI.create(routeData);
+                      setSubmitMessage({
+                        type: "success",
+                        text: `✅ Route created successfully!`,
+                      });
+                      e.target.reset();
+                      // Refresh routes
+                      const response = await routesAPI.getAll();
+                      setRoutes(response.data);
+                    } catch (error) {
+                      console.error("Error creating route:", error);
+                      setSubmitMessage({
+                        type: "error",
+                        text: `❌ Error: ${
+                          error.response?.data?.message ||
+                          "Failed to create route"
+                        }`,
+                      });
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-400 text-sm mb-2">
+                        Start Address *
+                      </label>
+                      <input
+                        type="text"
+                        name="startAddress"
+                        required
+                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
+                        placeholder="Enter start address"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 text-sm mb-2">
+                        End Address *
+                      </label>
+                      <input
+                        type="text"
+                        name="endAddress"
+                        required
+                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
+                        placeholder="Enter end address"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 text-sm mb-2">
+                        Start Latitude
+                      </label>
+                      <input
+                        type="number"
+                        name="startLat"
+                        step="any"
+                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
+                        placeholder="e.g. 40.7128"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 text-sm mb-2">
+                        Start Longitude
+                      </label>
+                      <input
+                        type="number"
+                        name="startLng"
+                        step="any"
+                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
+                        placeholder="e.g. -74.0060"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 text-sm mb-2">
+                        End Latitude
+                      </label>
+                      <input
+                        type="number"
+                        name="endLat"
+                        step="any"
+                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
+                        placeholder="e.g. 40.7589"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 text-sm mb-2">
+                        End Longitude
+                      </label>
+                      <input
+                        type="number"
+                        name="endLng"
+                        step="any"
+                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
+                        placeholder="e.g. -73.9851"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 text-sm mb-2">
+                        Distance (km)
+                      </label>
+                      <input
+                        type="number"
+                        name="distance"
+                        step="any"
+                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
+                        placeholder="e.g. 15.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 text-sm mb-2">
+                        Duration (minutes)
+                      </label>
+                      <input
+                        type="number"
+                        name="duration"
+                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
+                        placeholder="e.g. 45"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Submit Message */}
+                  {submitMessage.text && (
+                    <div
+                      className={`mt-4 p-4 rounded-lg ${
+                        submitMessage.type === "success"
+                          ? "bg-green-500/20 border border-green-500/50 text-green-400"
+                          : "bg-red-500/20 border border-red-500/50 text-red-400"
+                      }`}
+                    >
+                      {submitMessage.text}
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className={`bg-gradient-to-r from-orange-600 to-red-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all flex items-center gap-2 ${
+                        isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin"></i>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-route"></i>
+                          Create Route
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="reset"
+                      disabled={isSubmitting}
+                      className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2 rounded-lg transition-all disabled:opacity-50"
+                      onClick={() => setSubmitMessage({ type: "", text: "" })}
+                    >
+                      Clear Form
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </CardSpotlight>
+          </motion.div>
+        </section>
+
         {/* Analytics Section */}
         <section id="analytics" className="mb-8">
           <motion.div
@@ -1758,6 +2166,163 @@ const FleetDashboard = () => {
                   <button
                     type="button"
                     onClick={() => setShowEditProfileModal(false)}
+                    disabled={isSubmitting}
+                    className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Route Assignment Modal */}
+        {showRouteAssignmentModal && selectedRouteForAssignment && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowRouteAssignmentModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-900 rounded-xl p-6 max-w-md w-full border border-slate-700 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <i className="fas fa-user-plus text-blue-400"></i>
+                  Assign Route
+                </h3>
+                <button
+                  onClick={() => setShowRouteAssignmentModal(false)}
+                  className="text-slate-400 hover:text-white transition"
+                >
+                  <i className="fas fa-times text-xl"></i>
+                </button>
+              </div>
+
+              <div className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                <h4 className="text-white font-semibold mb-2">Route Details</h4>
+                <p className="text-slate-400 text-sm">
+                  {selectedRouteForAssignment.startLocation?.address ||
+                    "Start Location"}{" "}
+                  →{" "}
+                  {selectedRouteForAssignment.endLocation?.address ||
+                    "End Location"}
+                </p>
+                <p className="text-slate-500 text-xs mt-1">
+                  Distance:{" "}
+                  {selectedRouteForAssignment.distance
+                    ? `${selectedRouteForAssignment.distance} km`
+                    : "N/A"}{" "}
+                  | Duration:{" "}
+                  {selectedRouteForAssignment.duration
+                    ? `${selectedRouteForAssignment.duration} min`
+                    : "N/A"}
+                </p>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setIsSubmitting(true);
+                  setSubmitMessage({ type: "", text: "" });
+
+                  const formData = new FormData(e.target);
+                  const driverId = formData.get("driverId");
+
+                  try {
+                    await routesAPI.assignToDriver(
+                      selectedRouteForAssignment.id,
+                      driverId
+                    );
+                    setSubmitMessage({
+                      type: "success",
+                      text: `✅ Route assigned to driver successfully!`,
+                    });
+                    // Refresh routes
+                    const response = await routesAPI.getAll();
+                    setRoutes(response.data);
+                    setTimeout(() => {
+                      setShowRouteAssignmentModal(false);
+                      setSelectedRouteForAssignment(null);
+                      setSubmitMessage({ type: "", text: "" });
+                    }, 2000);
+                  } catch (error) {
+                    console.error("Error assigning route:", error);
+                    setSubmitMessage({
+                      type: "error",
+                      text: `❌ Error: ${
+                        error.response?.data?.message ||
+                        "Failed to assign route"
+                      }`,
+                    });
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+              >
+                <div className="mb-4">
+                  <label className="block text-slate-400 text-sm mb-2">
+                    Select Driver *
+                  </label>
+                  <select
+                    name="driverId"
+                    required
+                    className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">Choose a driver...</option>
+                    {drivers
+                      .filter((driver) => driver.status === "active")
+                      .map((driver) => (
+                        <option key={driver.id} value={driver.id}>
+                          {driver.name} (ID: {driver.id})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Submit Message */}
+                {submitMessage.text && (
+                  <div
+                    className={`mb-4 p-4 rounded-lg ${
+                      submitMessage.type === "success"
+                        ? "bg-green-500/20 border border-green-500/50 text-green-400"
+                        : "bg-red-500/20 border border-red-500/50 text-red-400"
+                    }`}
+                  >
+                    {submitMessage.text}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className={`flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all ${
+                      isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin mr-2"></i>
+                        Assigning...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-user-plus mr-2"></i>
+                        Assign Route
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRouteAssignmentModal(false)}
                     disabled={isSubmitting}
                     className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all disabled:opacity-50"
                   >

@@ -90,4 +90,20 @@ export const fleetManagersAPI = {
   getDrivers: (managerId) => api.get(`/fleet-managers/${managerId}/drivers`),
 };
 
+// Routes API
+export const routesAPI = {
+  getAll: () => api.get("/routes"),
+  getById: (id) => api.get(`/routes/${id}`),
+  create: (data) => api.post("/routes", data),
+  update: (id, data) => api.put(`/routes/${id}`, data),
+  delete: (id) => api.delete(`/routes/${id}`),
+  assignToDriver: (routeId, driverId) =>
+    api.post(`/routes/${routeId}/assign/${driverId}`),
+  startTrip: (routeId) => api.post(`/routes/${routeId}/start`),
+  endTrip: (routeId) => api.post(`/routes/${routeId}/end`),
+  getByDriver: (driverId) => api.get(`/routes/driver/${driverId}`),
+  getCurrentRouteForDriver: (driverId) =>
+    api.get(`/routes/driver/${driverId}/current`),
+};
+
 export default api;

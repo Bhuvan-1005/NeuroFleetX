@@ -10,6 +10,7 @@ const DriverSignup = () => {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    username: "",
     email: "",
     phone: "",
     licenseNumber: "",
@@ -44,6 +45,7 @@ const DriverSignup = () => {
 
     // Prepare data for NeuroFleetX backend
     const driverData = {
+      username: rawData.username,
       name: `${rawData.firstName} ${rawData.lastName}`,
       email: rawData.email,
       phone: rawData.phone,
@@ -121,6 +123,19 @@ const DriverSignup = () => {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="username">Username</label>
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="Choose a username"
+                  required
+                />
               </div>
 
               <div className="form-group">

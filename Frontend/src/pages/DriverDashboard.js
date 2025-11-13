@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import LocationTracker from "../components/LocationTracker";
 import Navbar from "../components/Navbar";
 import Particles from "../components/Particles";
+import Map from "../components/Map";
 import { CardSpotlight } from "../components/ui/CardEffects";
 import { motion } from "framer-motion";
-import { vehiclesAPI } from "../services/api";
+import { vehiclesAPI, routesAPI } from "../services/api";
 
 const DriverDashboard = () => {
   const { currentUser, logout } = useAuth();
@@ -19,6 +20,30 @@ const DriverDashboard = () => {
   const [tripStartTime, setTripStartTime] = useState(null);
   const [showVehicleSelector, setShowVehicleSelector] = useState(false);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [currentRoute, setCurrentRoute] = useState(null);
+  const [assignedRoutes, setAssignedRoutes] = useState([]);
+
+  const fetchRoutes = useCallback(async () => {
+    if (!driverInfo?.id) return;
+    try {
+      const response = await routesAPI.getByDriver(driverInfo.id);
+      const routes = response.data?.data || response.data || [];
+      setAssignedRoutes(routes);
+
+      // Check for current active route
+      const currentRouteResponse = await routesAPI.getCurrentRouteForDriver(
+        driverInfo.id
+      );
+      if (currentRouteResponse.data) {
+        setCurrentRoute(currentRouteResponse.data);
+        setTripStatus("active");
+      }
+    } catch (error) {
+      console.error("Error fetching routes:", error);
+      setAssignedRoutes([]);
+      setCurrentRoute(null);
+    }
+  }, [driverInfo]);
 
   useEffect(() => {
     // Get driver information from localStorage or API
@@ -39,6 +64,13 @@ const DriverDashboard = () => {
     // Fetch available vehicles
     fetchVehicles();
   }, []);
+
+  // Fetch routes when driver info changes
+  useEffect(() => {
+    if (driverInfo?.id) {
+      fetchRoutes();
+    }
+  }, [driverInfo?.id, fetchRoutes]);
 
   const fetchVehicles = async () => {
     try {
@@ -63,21 +95,49 @@ const DriverDashboard = () => {
     setShowVehicleSelector(false);
   };
 
-  const handleStartTrip = () => {
+  const handleStartTrip = async () => {
     if (!selectedVehicle) {
       alert("Please select a vehicle first!");
       setShowVehicleSelector(true);
       return;
     }
-    setTripStatus("active");
-    setTripStartTime(new Date());
-    setTrackingEnabled(true);
+
+    if (!currentRoute) {
+      alert("No active route assigned. Please contact your fleet manager.");
+      return;
+    }
+
+    try {
+      await routesAPI.startTrip(currentRoute.id);
+      setTripStatus("active");
+      setTripStartTime(new Date());
+      setTrackingEnabled(true);
+      // Refresh routes to get updated status
+      fetchRoutes();
+    } catch (error) {
+      console.error("Error starting trip:", error);
+      alert("Failed to start trip. Please try again.");
+    }
   };
 
-  const handleEndTrip = () => {
-    setTripStatus("idle");
-    setTripStartTime(null);
-    setTrackingEnabled(false);
+  const handleEndTrip = async () => {
+    if (!currentRoute) {
+      alert("No active route to end.");
+      return;
+    }
+
+    try {
+      await routesAPI.endTrip(currentRoute.id);
+      setTripStatus("idle");
+      setTripStartTime(null);
+      setTrackingEnabled(false);
+      setCurrentRoute(null);
+      // Refresh routes to get updated status
+      fetchRoutes();
+    } catch (error) {
+      console.error("Error ending trip:", error);
+      alert("Failed to end trip. Please try again.");
+    }
   };
 
   const handleTakeBreak = () => {
@@ -119,7 +179,7 @@ const DriverDashboard = () => {
               Driver Dashboard
             </h1>
             <p className="text-slate-400">
-              Welcome, {currentUser?.name || driverInfo?.name || "Driver"}!
+              Welcome, {currentUser?.username || driverInfo?.name || "Driver"}!
             </p>
           </div>
           <button
@@ -131,7 +191,7 @@ const DriverDashboard = () => {
           </button>
         </motion.header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* GPS Tracking Card */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -344,6 +404,104 @@ const DriverDashboard = () => {
               </div>
             </CardSpotlight>
           </motion.div>
+
+          {/* Routes Card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <CardSpotlight className="h-full">
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                    <i className="fas fa-route text-white text-xl"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      Assigned Routes
+                    </h3>
+                    <p className="text-slate-400 text-sm">
+                      Your current and assigned routes
+                    </p>
+                  </div>
+                </div>
+
+                {currentRoute ? (
+                  <div className="bg-slate-800/50 p-4 rounded-lg border border-orange-500/30 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <i className="fas fa-play-circle text-green-400"></i>
+                      <span className="text-white font-semibold">
+                        Current Route
+                      </span>
+                    </div>
+                    <p className="text-slate-300 text-sm mb-2">
+                      {currentRoute.startLocation?.address || "Start"} →{" "}
+                      {currentRoute.endLocation?.address || "End"}
+                    </p>
+                    <div className="flex justify-between text-slate-400 text-xs">
+                      <span>
+                        Status:{" "}
+                        <span className="text-green-400">
+                          {currentRoute.status}
+                        </span>
+                      </span>
+                      <span>
+                        Distance:{" "}
+                        {currentRoute.distance
+                          ? `${currentRoute.distance} km`
+                          : "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 mb-4">
+                    <div className="text-center text-slate-400">
+                      <i className="fas fa-route text-2xl mb-2"></i>
+                      <p className="text-sm">No active route</p>
+                    </div>
+                  </div>
+                )}
+
+                {assignedRoutes.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-white font-semibold text-sm">
+                      All Assigned Routes
+                    </h4>
+                    {assignedRoutes.slice(0, 3).map((route) => (
+                      <div
+                        key={route.id}
+                        className="bg-slate-800/30 p-3 rounded border border-slate-700"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-300 text-sm">
+                            Route #{route.id}
+                          </span>
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              route.status === "assigned"
+                                ? "bg-blue-600"
+                                : route.status === "in_progress"
+                                ? "bg-yellow-600"
+                                : route.status === "completed"
+                                ? "bg-green-600"
+                                : "bg-gray-600"
+                            }`}
+                          >
+                            {route.status}
+                          </span>
+                        </div>
+                        <p className="text-slate-400 text-xs mt-1">
+                          {route.startLocation?.address || "Start"} →{" "}
+                          {route.endLocation?.address || "End"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardSpotlight>
+          </motion.div>
         </div>
 
         {/* Instructions */}
@@ -394,6 +552,75 @@ const DriverDashboard = () => {
           </CardSpotlight>
         </motion.div>
       </div>
+
+      {/* Route Map Section */}
+      {currentRoute && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="mt-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+        >
+          <CardSpotlight>
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                  <i className="fas fa-map-marked-alt text-white text-lg"></i>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    Route Navigation
+                  </h3>
+                  <p className="text-slate-400 text-sm">
+                    Follow your assigned route with real-time navigation
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-white font-semibold">Current Route</h4>
+                    <p className="text-slate-300 text-sm">
+                      {currentRoute.startLocation?.address} →{" "}
+                      {currentRoute.endLocation?.address}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-slate-400 text-sm">Status</div>
+                    <span className="px-3 py-1 bg-green-600 text-white text-xs rounded-full">
+                      {currentRoute.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between text-slate-300 text-sm">
+                  <span>Distance: {currentRoute.distance} km</span>
+                  <span>Duration: {currentRoute.duration} min</span>
+                </div>
+              </div>
+
+              <div className="h-96 rounded-lg overflow-hidden border border-slate-700">
+                <Map
+                  center={[
+                    currentRoute.startLocation?.latitude || 0,
+                    currentRoute.startLocation?.longitude || 0,
+                  ]}
+                  zoom={13}
+                  route={currentRoute}
+                  showRoute={true}
+                  className="w-full h-full"
+                />
+              </div>
+
+              <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded text-blue-400 text-sm">
+                <i className="fas fa-info-circle mr-2"></i>
+                Blue line shows your navigation route. Follow the path to reach
+                your destination.
+              </div>
+            </div>
+          </CardSpotlight>
+        </motion.div>
+      )}
 
       {/* Vehicle Selector Modal */}
       {showVehicleSelector && (

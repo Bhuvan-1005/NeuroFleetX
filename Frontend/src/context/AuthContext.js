@@ -29,9 +29,13 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const loginFleetManager = async (email, password) => {
+  const loginFleetManager = async (username, fleetId, password) => {
     try {
-      const response = await authAPI.fleetLogin({ email, password });
+      const response = await authAPI.fleetLogin({
+        username,
+        fleetId,
+        password,
+      });
 
       if (response.data.success) {
         const { token, user } = response.data;
@@ -112,10 +116,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginDriver = async (email, password) => {
+  const loginDriver = async (username, licenseNumber, password) => {
     try {
       const response = await authAPI.driverLogin({
-        email,
+        username,
+        licenseNumber,
         password,
       });
 

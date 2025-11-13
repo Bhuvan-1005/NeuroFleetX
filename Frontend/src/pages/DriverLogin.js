@@ -7,7 +7,11 @@ import Notification from "../components/Notification";
 import "./Auth.css";
 
 const DriverLogin = () => {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({
+    username: "",
+    licenseNumber: "",
+    password: "",
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [notification, setNotification] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -19,7 +23,11 @@ const DriverLogin = () => {
     setIsLoading(true);
 
     try {
-      const result = await driverLogin(formData.email, formData.password);
+      const result = await driverLogin(
+        formData.username,
+        formData.licenseNumber,
+        formData.password
+      );
 
       if (result.success) {
         setNotification({ message: "Login successful!", type: "success" });
@@ -41,7 +49,7 @@ const DriverLogin = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
 
   return (
-    <div className="auth-page">
+    <div className="landing-page bg-slate-950 page-top-padding">
       <Particles />
       <Navbar showLinks={false} />
 
@@ -65,17 +73,32 @@ const DriverLogin = () => {
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="form-group">
-              <label htmlFor="email">
-                <i className="fas fa-envelope"></i> Email Address
+              <label htmlFor="username">
+                <i className="fas fa-user"></i> Username
               </label>
               <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
                 required
-                placeholder="Enter your email"
+                placeholder="Enter your username"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="licenseNumber">
+                <i className="fas fa-id-card"></i> License Number
+              </label>
+              <input
+                type="text"
+                id="licenseNumber"
+                name="licenseNumber"
+                value={formData.licenseNumber}
+                onChange={handleChange}
+                required
+                placeholder="Enter your license number"
               />
             </div>
 

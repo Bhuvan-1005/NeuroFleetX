@@ -8,7 +8,11 @@ import Notification from "../components/Notification";
 import "./Auth.css";
 
 const FleetManagerLogin = () => {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({
+    username: "",
+    fleetId: "",
+    password: "",
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [notification, setNotification] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +25,11 @@ const FleetManagerLogin = () => {
     setIsLoading(true);
 
     try {
-      const result = await fleetLogin(formData.email, formData.password);
+      const result = await fleetLogin(
+        formData.username,
+        formData.fleetId,
+        formData.password
+      );
 
       if (result.success) {
         setNotification({
@@ -75,17 +83,32 @@ const FleetManagerLogin = () => {
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="form-group">
-              <label htmlFor="email">
-                <i className="fas fa-envelope"></i> Email Address
+              <label htmlFor="username">
+                <i className="fas fa-user"></i> Username
               </label>
               <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                id="username"
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
                 required
-                placeholder="Enter your email"
+                placeholder="Enter your username"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="fleetId">
+                <i className="fas fa-id-card"></i> Fleet ID
+              </label>
+              <input
+                type="text"
+                id="fleetId"
+                name="fleetId"
+                value={formData.fleetId}
+                onChange={handleChange}
+                required
+                placeholder="Enter your fleet ID"
               />
             </div>
 
