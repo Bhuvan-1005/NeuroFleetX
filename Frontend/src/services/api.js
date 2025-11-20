@@ -106,4 +106,11 @@ export const routesAPI = {
     api.get(`/routes/driver/${driverId}/current`),
 };
 
+// Notifications API
+export const notificationsAPI = {
+  getPreferences: (userId) => api.get(`/notifications/preferences/${userId}`),
+  savePreferences: (data) => api.post("/notifications/preferences", data),
+  sendTest: (userId, data) => api.post(`/notifications/test/${userId}`, data),
+};
+
 export default api;

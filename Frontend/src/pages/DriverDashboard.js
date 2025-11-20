@@ -191,6 +191,64 @@ const DriverDashboard = () => {
           </button>
         </motion.header>
 
+        {/* Quick Navigation */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+          className="mb-8"
+        >
+          <h2 className="text-xl font-semibold text-white mb-4">
+            Quick Access
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button
+              onClick={() => navigate("/driver-profile")}
+              className="bg-gradient-to-br from-blue-600/20 to-blue-800/20 hover:from-blue-600/30 hover:to-blue-800/30 border border-blue-500/30 rounded-lg p-4 transition-all group"
+            >
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+                👤
+              </div>
+              <div className="text-white font-semibold">Profile</div>
+              <div className="text-slate-400 text-xs">Manage account</div>
+            </button>
+
+            <button
+              onClick={() => navigate("/driver-routes")}
+              className="bg-gradient-to-br from-orange-600/20 to-orange-800/20 hover:from-orange-600/30 hover:to-orange-800/30 border border-orange-500/30 rounded-lg p-4 transition-all group"
+            >
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+                🗺️
+              </div>
+              <div className="text-white font-semibold">Routes</div>
+              <div className="text-slate-400 text-xs">View all routes</div>
+            </button>
+
+            <button
+              onClick={() => navigate("/driver-telemetry")}
+              className="bg-gradient-to-br from-green-600/20 to-green-800/20 hover:from-green-600/30 hover:to-green-800/30 border border-green-500/30 rounded-lg p-4 transition-all group"
+            >
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+                📍
+              </div>
+              <div className="text-white font-semibold">Telemetry</div>
+              <div className="text-slate-400 text-xs">Live tracking</div>
+            </button>
+
+            <button
+              onClick={() => navigate("/driver-notifications")}
+              className="bg-gradient-to-br from-purple-600/20 to-purple-800/20 hover:from-purple-600/30 hover:to-purple-800/30 border border-purple-500/30 rounded-lg p-4 transition-all group relative"
+            >
+              <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+                🔔
+              </div>
+              <div className="text-white font-semibold">Notifications</div>
+              <div className="text-slate-400 text-xs">Alerts & updates</div>
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+            </button>
+          </div>
+        </motion.div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* GPS Tracking Card */}
           <motion.div
@@ -475,25 +533,31 @@ const DriverDashboard = () => {
                       >
                         <div className="flex justify-between items-center">
                           <span className="text-slate-300 text-sm">
-                            Route #{route.id}
+                            Route #{route.id?.slice(-6)}
                           </span>
                           <span
                             className={`px-2 py-1 rounded text-xs ${
                               route.status === "assigned"
-                                ? "bg-blue-600"
-                                : route.status === "in_progress"
                                 ? "bg-yellow-600"
-                                : route.status === "completed"
+                                : route.status === "in_progress"
                                 ? "bg-green-600"
+                                : route.status === "completed"
+                                ? "bg-blue-600"
                                 : "bg-gray-600"
                             }`}
                           >
-                            {route.status}
+                            {route.status === "assigned"
+                              ? "Pending"
+                              : route.status === "in_progress"
+                              ? "Active"
+                              : route.status === "completed"
+                              ? "Completed"
+                              : route.status}
                           </span>
                         </div>
                         <p className="text-slate-400 text-xs mt-1">
-                          {route.startLocation?.address || "Start"} →{" "}
-                          {route.endLocation?.address || "End"}
+                          {route.startLocationName || "Start Location"} →{" "}
+                          {route.endLocationName || "End Location"}
                         </p>
                       </div>
                     ))}

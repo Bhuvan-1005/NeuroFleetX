@@ -17,6 +17,10 @@ import DriverLogin from "./pages/DriverLogin";
 import DriverSignup from "./pages/DriverSignup";
 import FleetDashboard from "./pages/FleetDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
+import DriverProfile from "./pages/DriverProfile";
+import DriverRoutes from "./pages/DriverRoutes";
+import DriverTelemetry from "./pages/DriverTelemetry";
+import DriverNotifications from "./pages/DriverNotifications";
 import DataManagementDashboard from "./pages/DataManagementDashboard";
 
 // Protected Route Component
@@ -51,6 +55,42 @@ function App() {
                 element={
                   <ProtectedRoute role="driver">
                     <DriverDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/driver-profile"
+                element={
+                  <ProtectedRoute role="driver">
+                    <DriverProfile />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/driver-routes"
+                element={
+                  <ProtectedRoute role="driver">
+                    <DriverRoutes />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/driver-telemetry"
+                element={
+                  <ProtectedRoute role="driver">
+                    <DriverTelemetry />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/driver-notifications"
+                element={
+                  <ProtectedRoute role="driver">
+                    <DriverNotifications />
                   </ProtectedRoute>
                 }
               />
