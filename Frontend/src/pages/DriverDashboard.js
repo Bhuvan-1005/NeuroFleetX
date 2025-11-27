@@ -7,7 +7,7 @@ import Particles from "../components/Particles";
 import Map from "../components/Map";
 import { CardSpotlight } from "../components/ui/CardEffects";
 import { motion } from "framer-motion";
-import { vehiclesAPI, routesAPI } from "../services/api";
+import { vehiclesAPI, routesAPI, bookingsAPI } from "../services/api";
 
 const DriverDashboard = () => {
   const { currentUser, logout } = useAuth();
@@ -22,26 +22,108 @@ const DriverDashboard = () => {
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [currentRoute, setCurrentRoute] = useState(null);
   const [assignedRoutes, setAssignedRoutes] = useState([]);
+  const [assignedBookings, setAssignedBookings] = useState([]);
 
   const fetchRoutes = useCallback(async () => {
     if (!driverInfo?.id) return;
     try {
-      const response = await routesAPI.getByDriver(driverInfo.id);
-      const routes = response.data?.data || response.data || [];
+      // Try multiple approaches to fetch routes
+      let routes = [];
+
+      // Method 1: Try the driver-specific endpoint
+      try {
+        const response = await routesAPI.getByDriver(driverInfo.id);
+        console.log("Routes API response:", response);
+        routes = response.data?.data || response.data || [];
+        console.log("Parsed routes:", routes);
+      } catch (driverError) {
+        console.warn("Driver-specific route fetch failed:", driverError);
+
+        // Method 2: Fallback to get all routes and filter client-side
+        try {
+          const allRoutesResponse = await routesAPI.getAll();
+          console.log("All routes response:", allRoutesResponse);
+          const allRoutes =
+            allRoutesResponse.data?.data || allRoutesResponse.data || [];
+          routes = allRoutes.filter(
+            (route) => route.driverId === driverInfo.id
+          );
+          console.log("Filtered routes for driver:", routes);
+        } catch (allRoutesError) {
+          console.error("Failed to fetch all routes:", allRoutesError);
+        }
+      }
+
       setAssignedRoutes(routes);
 
-      // Check for current active route
-      const currentRouteResponse = await routesAPI.getCurrentRouteForDriver(
-        driverInfo.id
-      );
-      if (currentRouteResponse.data) {
-        setCurrentRoute(currentRouteResponse.data);
-        setTripStatus("active");
+      // Check for current active route or next route to start
+      try {
+        // First check for in_progress route
+        let activeRoute = routes.find(
+          (route) => route.status === "in_progress"
+        );
+
+        if (activeRoute) {
+          setCurrentRoute(activeRoute);
+          setTripStatus("active");
+        } else {
+          // If no in_progress route, check for assigned route (next to start)
+          const assignedRoute = routes.find(
+            (route) => route.status === "assigned"
+          );
+          if (assignedRoute) {
+            setCurrentRoute(assignedRoute);
+            setTripStatus("idle");
+          } else {
+            setCurrentRoute(null);
+            setTripStatus("idle");
+          }
+        }
+      } catch (currentRouteError) {
+        console.warn("Error setting current route:", currentRouteError);
+        setCurrentRoute(null);
       }
     } catch (error) {
       console.error("Error fetching routes:", error);
       setAssignedRoutes([]);
       setCurrentRoute(null);
+    }
+  }, [driverInfo]);
+
+  const fetchBookings = useCallback(async () => {
+    if (!driverInfo?.id) return;
+    try {
+      // Try multiple approaches to fetch bookings
+      let bookings = [];
+
+      // Method 1: Try the driver-specific endpoint
+      try {
+        const response = await bookingsAPI.getByDriver(driverInfo.id);
+        console.log("Bookings API response:", response);
+        bookings = response.data?.data || response.data || [];
+        console.log("Parsed bookings:", bookings);
+      } catch (driverError) {
+        console.warn("Driver-specific booking fetch failed:", driverError);
+
+        // Method 2: Fallback to get all bookings and filter client-side
+        try {
+          const allBookingsResponse = await bookingsAPI.getAll();
+          console.log("All bookings response:", allBookingsResponse);
+          const allBookings =
+            allBookingsResponse.data?.data || allBookingsResponse.data || [];
+          bookings = allBookings.filter(
+            (booking) => booking.assignedDriverId === driverInfo.id
+          );
+          console.log("Filtered bookings for driver:", bookings);
+        } catch (allBookingsError) {
+          console.error("Failed to fetch all bookings:", allBookingsError);
+        }
+      }
+
+      setAssignedBookings(bookings);
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      setAssignedBookings([]);
     }
   }, [driverInfo]);
 
@@ -69,8 +151,9 @@ const DriverDashboard = () => {
   useEffect(() => {
     if (driverInfo?.id) {
       fetchRoutes();
+      fetchBookings();
     }
-  }, [driverInfo?.id, fetchRoutes]);
+  }, [driverInfo?.id, fetchRoutes, fetchBookings]);
 
   const fetchVehicles = async () => {
     try {
@@ -103,7 +186,15 @@ const DriverDashboard = () => {
     }
 
     if (!currentRoute) {
-      alert("No active route assigned. Please contact your fleet manager.");
+      alert("No route assigned. Please contact your fleet manager.");
+      return;
+    }
+
+    if (
+      currentRoute.status !== "assigned" &&
+      currentRoute.status !== "in_progress"
+    ) {
+      alert(`Cannot start trip. Route status is: ${currentRoute.status}`);
       return;
     }
 
@@ -114,6 +205,7 @@ const DriverDashboard = () => {
       setTrackingEnabled(true);
       // Refresh routes to get updated status
       fetchRoutes();
+      alert("Trip started successfully!");
     } catch (error) {
       console.error("Error starting trip:", error);
       alert("Failed to start trip. Please try again.");
@@ -488,20 +580,36 @@ const DriverDashboard = () => {
                 {currentRoute ? (
                   <div className="bg-slate-800/50 p-4 rounded-lg border border-orange-500/30 mb-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <i className="fas fa-play-circle text-green-400"></i>
+                      <i
+                        className={`fas ${
+                          currentRoute.status === "in_progress"
+                            ? "fa-play-circle text-green-400"
+                            : "fa-clock text-yellow-400"
+                        }`}
+                      ></i>
                       <span className="text-white font-semibold">
-                        Current Route
+                        {currentRoute.status === "in_progress"
+                          ? "Active Route"
+                          : "Next Route"}
                       </span>
                     </div>
                     <p className="text-slate-300 text-sm mb-2">
-                      {currentRoute.startLocation?.address || "Start"} →{" "}
-                      {currentRoute.endLocation?.address || "End"}
+                      {currentRoute.startLocationName || "Start"} →{" "}
+                      {currentRoute.endLocationName || "End"}
                     </p>
                     <div className="flex justify-between text-slate-400 text-xs">
                       <span>
                         Status:{" "}
-                        <span className="text-green-400">
-                          {currentRoute.status}
+                        <span
+                          className={
+                            currentRoute.status === "in_progress"
+                              ? "text-green-400"
+                              : "text-yellow-400"
+                          }
+                        >
+                          {currentRoute.status === "assigned"
+                            ? "Ready to Start"
+                            : currentRoute.status}
                         </span>
                       </span>
                       <span>
@@ -559,6 +667,115 @@ const DriverDashboard = () => {
                           {route.startLocationName || "Start Location"} →{" "}
                           {route.endLocationName || "End Location"}
                         </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardSpotlight>
+          </motion.div>
+
+          {/* Assigned Bookings Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <CardSpotlight>
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <i className="fas fa-calendar-check text-white text-xl"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      Assigned Bookings
+                    </h3>
+                    <p className="text-slate-400 text-sm">
+                      Customer bookings assigned to you
+                    </p>
+                  </div>
+                </div>
+
+                {assignedBookings.length === 0 ? (
+                  <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 text-center">
+                    <i className="fas fa-inbox text-slate-400 text-3xl mb-2"></i>
+                    <p className="text-slate-400 text-sm">
+                      No bookings assigned yet
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {assignedBookings.map((booking) => (
+                      <div
+                        key={booking.id}
+                        className="bg-slate-800/50 p-4 rounded-lg border border-slate-700"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="text-white font-semibold">
+                              {booking.userName}
+                            </h4>
+                            <p className="text-slate-400 text-sm">
+                              {booking.vehicleName} (
+                              {booking.vehicleRegistration})
+                            </p>
+                          </div>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              booking.status === "confirmed"
+                                ? "bg-blue-600"
+                                : booking.status === "active"
+                                ? "bg-green-600"
+                                : booking.status === "completed"
+                                ? "bg-gray-600"
+                                : "bg-yellow-600"
+                            }`}
+                          >
+                            {booking.status}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2 mb-3">
+                          <div className="bg-slate-700/50 p-2 rounded">
+                            <p className="text-xs text-slate-400">📍 Pickup</p>
+                            <p className="text-white text-sm font-medium">
+                              {booking.pickupLocation || "Not specified"}
+                            </p>
+                          </div>
+                          <div className="bg-slate-700/50 p-2 rounded">
+                            <p className="text-xs text-slate-400">
+                              🎯 Destination
+                            </p>
+                            <p className="text-white text-sm font-medium">
+                              {booking.dropoffLocation || "Not specified"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <p className="text-slate-400">Start</p>
+                            <p className="text-white">
+                              {new Date(booking.startDate).toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-slate-400">End</p>
+                            <p className="text-white">
+                              {new Date(booking.endDate).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+
+                        {booking.purpose && (
+                          <div className="mt-2 pt-2 border-t border-slate-700">
+                            <p className="text-xs text-slate-400">Purpose</p>
+                            <p className="text-white text-sm">
+                              {booking.purpose}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

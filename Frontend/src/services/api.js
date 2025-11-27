@@ -113,4 +113,39 @@ export const notificationsAPI = {
   sendTest: (userId, data) => api.post(`/notifications/test/${userId}`, data),
 };
 
+// Bookings API
+export const bookingsAPI = {
+  getAll: () => api.get("/bookings"),
+  getById: (id) => api.get(`/bookings/${id}`),
+  create: (data) => api.post("/bookings", data),
+  update: (id, data) => api.put(`/bookings/${id}`, data),
+  delete: (id) => api.delete(`/bookings/${id}`),
+  getByUser: (userId) => api.get(`/bookings/user/${userId}`),
+  getByVehicle: (vehicleId) => api.get(`/bookings/vehicle/${vehicleId}`),
+  getByStatus: (status) => api.get(`/bookings/status/${status}`),
+  getByDriver: (driverId) => api.get(`/bookings/driver/${driverId}`),
+  getUpcoming: (userId) => api.get(`/bookings/user/${userId}/upcoming`),
+  checkAvailability: (data) => api.post("/bookings/check-availability", data),
+  confirm: (id) => api.put(`/bookings/${id}/confirm`),
+  start: (id) => api.put(`/bookings/${id}/start`),
+  complete: (id) => api.put(`/bookings/${id}/complete`),
+  cancel: (id) => api.put(`/bookings/${id}/cancel`),
+  assignDriver: (id, data) => api.put(`/bookings/${id}/assign-driver`, data),
+};
+
+// Customers API
+export const customersAPI = {
+  getAll: () => api.get("/customers"),
+  getById: (id) => api.get(`/customers/${id}`),
+  signup: (data) => api.post("/customers/signup", data),
+  login: (credentials) => api.post("/customers/login", credentials),
+  update: (id, data) => api.put(`/customers/${id}`, data),
+  changePassword: (id, data) =>
+    api.put(`/customers/${id}/change-password`, data),
+  delete: (id) => api.delete(`/customers/${id}`),
+  getByStatus: (status) => api.get(`/customers/status/${status}`),
+  suspend: (id) => api.put(`/customers/${id}/suspend`),
+  activate: (id) => api.put(`/customers/${id}/activate`),
+};
+
 export default api;

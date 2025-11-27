@@ -20,8 +20,14 @@ export const AuthProvider = ({ children }) => {
     // Check for existing session
     const token = localStorage.getItem("token");
     const user = localStorage.getItem("user");
+    const customer = localStorage.getItem("customer");
+    const customerToken = localStorage.getItem("customerToken");
 
-    if (token && user) {
+    if (customerToken && customer) {
+      const customerData = JSON.parse(customer);
+      setCurrentUser(customerData);
+      setUserRole("customer");
+    } else if (token && user) {
       const userData = JSON.parse(user);
       setCurrentUser(userData);
       setUserRole(userData.role);
@@ -145,6 +151,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginCustomer = async (credentials) => {
+    try {
+      const { customersAPI } = await import("../services/api");
+      const response = await customersAPI.login(credentials);
+
+      if (response.data.success) {
+        const customerData = response.data.data;
+
+        // Store customer data
+        localStorage.setItem("customer", JSON.stringify(customerData));
+        localStorage.setItem("customerToken", "customer_" + customerData.id);
+
+        setCurrentUser(customerData);
+        setUserRole("customer");
+
+        return { success: true };
+      }
+    } catch (error) {
+      console.error("Customer login error:", error);
+      return {
+        success: false,
+        message: error.response?.data?.message || "Invalid credentials",
+      };
+    }
+  };
+
   const logout = () => {
     setCurrentUser(null);
     setUserRole(null);
@@ -152,6 +184,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     localStorage.removeItem("currentFleetManager");
     localStorage.removeItem("currentDriver");
+    localStorage.removeItem("customer");
+    localStorage.removeItem("customerToken");
   };
 
   const value = {
@@ -162,11 +196,13 @@ export const AuthProvider = ({ children }) => {
     signupFleetManager,
     signupDriver,
     loginDriver,
+    loginCustomer,
     // Aliases for NeuroFleetX domain
     fleetLogin: loginFleetManager,
     fleetSignup: signupFleetManager,
     driverLogin: loginDriver,
     driverSignup: signupDriver,
+    customerLogin: loginCustomer,
     logout,
   };
 

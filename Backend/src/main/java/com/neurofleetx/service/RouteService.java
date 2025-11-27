@@ -22,7 +22,17 @@ public class RouteService {
     }
 
     public List<Route> getRoutesByDriver(String driverId) {
-        return routeRepository.findByDriverId(driverId);
+        try {
+            if (driverId == null || driverId.trim().isEmpty()) {
+                return new java.util.ArrayList<>();
+            }
+            List<Route> routes = routeRepository.findByDriverId(driverId);
+            return routes != null ? routes : new java.util.ArrayList<>();
+        } catch (Exception e) {
+            System.err.println("Error in getRoutesByDriver for driverId: " + driverId);
+            e.printStackTrace();
+            return new java.util.ArrayList<>();
+        }
     }
 
     public List<Route> getRoutesByDriverAndStatus(String driverId, String status) {

@@ -22,6 +22,13 @@ import DriverRoutes from "./pages/DriverRoutes";
 import DriverTelemetry from "./pages/DriverTelemetry";
 import DriverNotifications from "./pages/DriverNotifications";
 import DataManagementDashboard from "./pages/DataManagementDashboard";
+import VehicleBooking from "./pages/VehicleBooking";
+import MyBookings from "./pages/MyBookings";
+import CustomerLogin from "./pages/CustomerLogin";
+import CustomerSignup from "./pages/CustomerSignup";
+import CustomerDashboard from "./pages/CustomerDashboard";
+import RouteAssignment from "./pages/RouteAssignment";
+import RouteManagement from "./pages/RouteManagement";
 
 // Protected Route Component
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -41,11 +48,33 @@ function App() {
               <Route path="/driver-login" element={<DriverLogin />} />
               <Route path="/driver-signup" element={<DriverSignup />} />
 
+              {/* Customer Auth Routes */}
+              <Route path="/customer-login" element={<CustomerLogin />} />
+              <Route path="/customer-signup" element={<CustomerSignup />} />
+
               <Route
                 path="/fleet-dashboard"
                 element={
                   <ProtectedRoute role="fleet_manager">
                     <FleetDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/route-assignment"
+                element={
+                  <ProtectedRoute role="fleet_manager">
+                    <RouteAssignment />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/route-management"
+                element={
+                  <ProtectedRoute role="fleet_manager">
+                    <RouteManagement />
                   </ProtectedRoute>
                 }
               />
@@ -91,6 +120,35 @@ function App() {
                 element={
                   <ProtectedRoute role="driver">
                     <DriverNotifications />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Customer Dashboard */}
+              <Route
+                path="/customer-dashboard"
+                element={
+                  <ProtectedRoute role="customer">
+                    <CustomerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Vehicle Booking Routes - For Customers */}
+              <Route
+                path="/book-vehicle"
+                element={
+                  <ProtectedRoute role="customer">
+                    <VehicleBooking />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/my-bookings"
+                element={
+                  <ProtectedRoute role="customer">
+                    <MyBookings />
                   </ProtectedRoute>
                 }
               />

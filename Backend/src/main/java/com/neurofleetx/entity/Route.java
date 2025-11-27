@@ -12,6 +12,7 @@ public class Route {
 
     private String driverId;
     private String driverName;
+    private String driverUsername; // Username of the assigned driver
     private String createdByUsername; // Username of the fleet manager who created the route
     private String assignedByUsername; // Username of the fleet manager who assigned the route
 
@@ -86,6 +87,14 @@ public class Route {
 
     public void setDriverName(String driverName) {
         this.driverName = driverName;
+    }
+
+    public String getDriverUsername() {
+        return driverUsername;
+    }
+
+    public void setDriverUsername(String driverUsername) {
+        this.driverUsername = driverUsername;
     }
 
     public String getCreatedByUsername() {

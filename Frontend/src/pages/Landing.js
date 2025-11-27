@@ -44,7 +44,7 @@ const Landing = () => {
           </p>
 
           {/* Portal Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto mb-16">
             <CardSpotlight className="h-auto">
               <div className="text-center space-y-4 p-6">
                 <div className="flex justify-center">
@@ -161,6 +161,80 @@ const Landing = () => {
                     </HoverBorderGradient>
                   </Link>
                   <Link to="/driver-signup">
+                    <HoverBorderGradient
+                      as="div"
+                      className="bg-slate-900 text-white"
+                    >
+                      <i className="fas fa-user-plus"></i>
+                      <span>Sign Up</span>
+                    </HoverBorderGradient>
+                  </Link>
+                </div>
+              </div>
+            </CardSpotlight>
+
+            {/* Customer Portal Card */}
+            <CardSpotlight className="bg-slate-900/50 backdrop-blur-sm hover-lift">
+              <div className="p-8 text-center space-y-4">
+                <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center mb-4">
+                  <div className="text-center">
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <circle
+                        cx="9"
+                        cy="7"
+                        r="4"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M23 21v-2a4 4 0 0 0-3-3.87"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M16 3.13a4 4 0 0 1 0 7.75"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold text-white">
+                  Customer Portal
+                </h3>
+                <p className="text-slate-400">
+                  Book vehicles easily and manage your reservations
+                </p>
+                <div className="flex gap-4 justify-center pt-4">
+                  <Link to="/customer-login">
+                    <HoverBorderGradient
+                      as="div"
+                      className="bg-slate-900 text-white"
+                    >
+                      <i className="fas fa-sign-in-alt"></i>
+                      <span>Login</span>
+                    </HoverBorderGradient>
+                  </Link>
+                  <Link to="/customer-signup">
                     <HoverBorderGradient
                       as="div"
                       className="bg-slate-900 text-white"

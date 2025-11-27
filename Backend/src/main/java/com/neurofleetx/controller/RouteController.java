@@ -30,7 +30,7 @@ public class RouteController {
 
     // Get route by ID
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getRouteById(@PathVariable String id) {
+    public ResponseEntity<Map<String, Object>> getRouteById(@PathVariable("id") String id) {
         return routeService.getRouteById(id)
                 .map(route -> {
                     Map<String, Object> response = new HashMap<>();
@@ -43,17 +43,31 @@ public class RouteController {
 
     // Get routes by driver
     @GetMapping("/driver/{driverId}")
-    public ResponseEntity<Map<String, Object>> getRoutesByDriver(@PathVariable String driverId) {
-        List<Route> routes = routeService.getRoutesByDriver(driverId);
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("data", routes);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<Map<String, Object>> getRoutesByDriver(@PathVariable("driverId") String driverId) {
+        try {
+            System.out.println("Fetching routes for driver ID: " + driverId);
+            List<Route> routes = routeService.getRoutesByDriver(driverId);
+            System.out.println("Found " + (routes != null ? routes.size() : 0) + " routes");
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", routes != null ? routes : new java.util.ArrayList<>());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            System.err.println("ERROR in getRoutesByDriver for driverId: " + driverId);
+            e.printStackTrace();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", new java.util.ArrayList<>());
+            response.put("message", "No routes found");
+            return ResponseEntity.ok(response);
+        }
     }
 
     // Get current route for driver
     @GetMapping("/driver/{driverId}/current")
-    public ResponseEntity<Map<String, Object>> getCurrentRouteForDriver(@PathVariable String driverId) {
+    public ResponseEntity<Map<String, Object>> getCurrentRouteForDriver(@PathVariable("driverId") String driverId) {
         return routeService.getCurrentRouteForDriver(driverId)
                 .map(route -> {
                     Map<String, Object> response = new HashMap<>();
@@ -80,6 +94,17 @@ public class RouteController {
         try {
             // Extract route data from the request
             Route route = new Route();
+            
+            // Extract driver information
+            if (requestData.containsKey("driverId")) {
+                route.setDriverId((String) requestData.get("driverId"));
+            }
+            if (requestData.containsKey("driverName")) {
+                route.setDriverName((String) requestData.get("driverName"));
+            }
+            if (requestData.containsKey("driverUsername")) {
+                route.setDriverUsername((String) requestData.get("driverUsername"));
+            }
             
             // Extract basic route information
             if (requestData.containsKey("startLocationName")) {
@@ -166,7 +191,7 @@ public class RouteController {
 
     // Start trip
     @PostMapping("/{routeId}/start")
-    public ResponseEntity<Map<String, Object>> startTrip(@PathVariable String routeId) {
+    public ResponseEntity<Map<String, Object>> startTrip(@PathVariable("routeId") String routeId) {
         try {
             Route updatedRoute = routeService.startTrip(routeId);
             Map<String, Object> response = new HashMap<>();
@@ -184,7 +209,7 @@ public class RouteController {
 
     // End trip
     @PostMapping("/{routeId}/end")
-    public ResponseEntity<Map<String, Object>> endTrip(@PathVariable String routeId) {
+    public ResponseEntity<Map<String, Object>> endTrip(@PathVariable("routeId") String routeId) {
         try {
             Route updatedRoute = routeService.endTrip(routeId);
             Map<String, Object> response = new HashMap<>();

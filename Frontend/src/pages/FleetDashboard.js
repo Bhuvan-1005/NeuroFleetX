@@ -6,7 +6,13 @@ import Particles from "../components/Particles";
 import Map from "../components/Map";
 import { motion, AnimatePresence } from "framer-motion";
 import { CardSpotlight } from "../components/ui/CardEffects";
-import { vehiclesAPI, driversAPI, authAPI, routesAPI } from "../services/api";
+import {
+  vehiclesAPI,
+  driversAPI,
+  authAPI,
+  routesAPI,
+  bookingsAPI,
+} from "../services/api";
 
 const FleetDashboard = () => {
   const { currentUser, logout } = useAuth();
@@ -14,6 +20,9 @@ const FleetDashboard = () => {
 
   const [now, setNow] = useState(new Date());
   const [routes, setRoutes] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [assigningBookingId, setAssigningBookingId] = useState(null);
+  const [selectedDriverForBooking, setSelectedDriverForBooking] = useState({});
 
   // Modal states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -60,17 +69,21 @@ const FleetDashboard = () => {
     localStorage.setItem("fleetDashboardSettings", JSON.stringify(settings));
   }, [settings]);
 
-  // Load routes
+  // Load routes and bookings
   useEffect(() => {
-    const loadRoutes = async () => {
+    const loadData = async () => {
       try {
-        const response = await routesAPI.getAll();
-        setRoutes(response.data);
+        const [routesRes, bookingsRes] = await Promise.all([
+          routesAPI.getAll(),
+          bookingsAPI.getAll(),
+        ]);
+        setRoutes(routesRes.data);
+        setBookings(bookingsRes.data?.data || bookingsRes.data || []);
       } catch (error) {
-        console.error("Error loading routes:", error);
+        console.error("Error loading data:", error);
       }
     };
-    loadRoutes();
+    loadData();
   }, []);
 
   const updateSetting = (key, value) => {
@@ -85,9 +98,74 @@ const FleetDashboard = () => {
   const stats = {
     totalDrivers: drivers.length,
     totalVehicles: vehicles.length,
+    pendingBookings: bookings.filter(
+      (b) => !b.assignedDriverId && b.status !== "cancelled"
+    ).length,
     telemetryToday: telemetryRecords.filter(
       (r) => r.date === new Date().toISOString().split("T")[0]
     ).length,
+  };
+
+  // Handle driver assignment
+  const handleAssignDriver = async (bookingId) => {
+    const driverId = selectedDriverForBooking[bookingId];
+    if (!driverId) {
+      alert("Please select a driver");
+      return;
+    }
+
+    try {
+      setAssigningBookingId(bookingId);
+      const driver = drivers.find((d) => d.id === driverId);
+      const booking = bookings.find((b) => b.id === bookingId);
+
+      // Get current user from localStorage for createdByUsername
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const createdByUsername =
+        currentUser.username || currentUser.name || "fleet-manager";
+
+      // Create a route for this booking with driverUsername
+      const routeData = {
+        driverId: driver.id,
+        driverName: driver.name || driver.username,
+        driverUsername: driver.username, // Add driver username for route assignment
+        startLocationName: booking.pickupLocation,
+        endLocationName: booking.dropoffLocation,
+        distance: 0,
+        estimatedDuration: 0,
+        notes: `Booking: ${booking.purpose || "Customer booking"}`,
+        createdByUsername: createdByUsername, // Required by backend
+      };
+
+      console.log("Creating route with data:", routeData);
+      const routeResponse = await routesAPI.create(routeData);
+      const route = routeResponse.data?.data || routeResponse.data;
+      console.log("Route created:", route);
+
+      // Assign the driver and route to the booking
+      await bookingsAPI.assignDriver(bookingId, {
+        driverId: driver.id,
+        driverName: driver.name || driver.username,
+        routeId: route.id,
+      });
+
+      alert("✅ Driver assigned successfully!");
+
+      // Reload bookings data
+      const bookingsRes = await bookingsAPI.getAll();
+      setBookings(bookingsRes.data?.data || bookingsRes.data || []);
+
+      // Clear selection
+      setSelectedDriverForBooking((prev) => ({ ...prev, [bookingId]: "" }));
+    } catch (error) {
+      console.error("Error assigning driver:", error);
+      alert(
+        error.response?.data?.message ||
+          "❌ Failed to assign driver. Please try again."
+      );
+    } finally {
+      setAssigningBookingId(null);
+    }
   };
 
   // Navigation links for dashboard
@@ -100,6 +178,27 @@ const FleetDashboard = () => {
         document
           .getElementById("overview")
           ?.scrollIntoView({ behavior: "smooth" }),
+    },
+    {
+      id: "bookings",
+      label: "Bookings",
+      icon: "fas fa-calendar-check",
+      onClick: () =>
+        document
+          .getElementById("bookings")
+          ?.scrollIntoView({ behavior: "smooth" }),
+    },
+    {
+      id: "route-assignment",
+      label: "Route Assignment",
+      icon: "fas fa-route",
+      href: "/route-assignment",
+    },
+    {
+      id: "route-management",
+      label: "Manage Routes",
+      icon: "fas fa-route",
+      href: "/route-management",
     },
     {
       id: "map",
@@ -190,7 +289,7 @@ const FleetDashboard = () => {
 
         {/* Stats Grid with Card Effects */}
         <section
-          className="stats-grid grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+          className="stats-grid grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
           id="stats"
         >
           <motion.div
@@ -221,6 +320,29 @@ const FleetDashboard = () => {
                   {stats.totalDrivers}
                 </h3>
                 <p className="text-slate-400 text-lg">Drivers Onboarded</p>
+              </div>
+            </CardSpotlight>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+          >
+            <CardSpotlight className="h-auto">
+              <div
+                className="stat-card bg-transparent rounded-xl p-6 text-center cursor-pointer hover:scale-105 transition-transform"
+                onClick={() =>
+                  document
+                    .getElementById("bookings")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+              >
+                <div className="text-5xl mb-3">📅</div>
+                <h3 className="text-4xl font-bold text-yellow-400 mb-2">
+                  {stats.pendingBookings}
+                </h3>
+                <p className="text-slate-400 text-lg">Pending Bookings</p>
               </div>
             </CardSpotlight>
           </motion.div>
@@ -1068,6 +1190,251 @@ const FleetDashboard = () => {
           </motion.div>
         </section>
 
+        {/* Bookings Section */}
+        <section id="bookings" className="mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.75 }}
+          >
+            <CardSpotlight className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <i className="fas fa-calendar-check text-white text-lg"></i>
+                  </div>
+                  <h4 className="text-2xl font-bold text-white">
+                    Customer Bookings
+                  </h4>
+                </div>
+                <a
+                  href="/route-assignment"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all flex items-center gap-2"
+                >
+                  <i className="fas fa-route"></i>
+                  Assign Drivers
+                </a>
+              </div>
+
+              {/* Booking Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                      <i className="fas fa-clock text-yellow-400"></i>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-sm">Pending</p>
+                      <p className="text-white text-xl font-bold">
+                        {
+                          bookings.filter(
+                            (b) =>
+                              !b.assignedDriverId && b.status !== "cancelled"
+                          ).length
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                      <i className="fas fa-user-check text-blue-400"></i>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-sm">Assigned</p>
+                      <p className="text-white text-xl font-bold">
+                        {
+                          bookings.filter(
+                            (b) =>
+                              b.assignedDriverId &&
+                              b.status !== "completed" &&
+                              b.status !== "cancelled"
+                          ).length
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                      <i className="fas fa-check-circle text-green-400"></i>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-sm">Completed</p>
+                      <p className="text-white text-xl font-bold">
+                        {
+                          bookings.filter((b) => b.status === "completed")
+                            .length
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                      <i className="fas fa-list text-purple-400"></i>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-sm">Total</p>
+                      <p className="text-white text-xl font-bold">
+                        {bookings.length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bookings List */}
+              <div className="space-y-3">
+                {bookings.length > 0 ? (
+                  bookings.slice(0, 5).map((booking) => (
+                    <div
+                      key={booking.id}
+                      className="bg-slate-800/50 p-4 rounded-lg border border-slate-700 hover:border-blue-500 transition-all"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <h5 className="text-white font-bold flex items-center gap-2">
+                            {booking.userName || "Customer"}
+                            {!booking.assignedDriverId && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-400">
+                                Needs Driver
+                              </span>
+                            )}
+                          </h5>
+                          <p className="text-slate-400 text-sm">
+                            {booking.vehicleName} ({booking.vehicleRegistration}
+                            )
+                          </p>
+                        </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            booking.status === "pending"
+                              ? "bg-yellow-500/20 text-yellow-400"
+                              : booking.status === "confirmed"
+                              ? "bg-blue-500/20 text-blue-400"
+                              : booking.status === "active"
+                              ? "bg-green-500/20 text-green-400"
+                              : booking.status === "completed"
+                              ? "bg-gray-500/20 text-gray-400"
+                              : "bg-red-500/20 text-red-400"
+                          }`}
+                        >
+                          {booking.status}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <div className="bg-slate-700/50 p-2 rounded">
+                          <p className="text-xs text-slate-400 mb-1">
+                            📍 Pickup
+                          </p>
+                          <p className="text-white text-sm">
+                            {booking.pickupLocation || "Not specified"}
+                          </p>
+                        </div>
+                        <div className="bg-slate-700/50 p-2 rounded">
+                          <p className="text-xs text-slate-400 mb-1">
+                            🎯 Dropoff
+                          </p>
+                          <p className="text-white text-sm">
+                            {booking.dropoffLocation || "Not specified"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-4 text-slate-400">
+                          <span>
+                            <i className="fas fa-calendar mr-1 text-blue-400"></i>
+                            {new Date(booking.startDate).toLocaleDateString()}
+                          </span>
+                          {booking.assignedDriverName && (
+                            <span>
+                              <i className="fas fa-user mr-1 text-green-400"></i>
+                              {booking.assignedDriverName}
+                            </span>
+                          )}
+                        </div>
+                        {!booking.assignedDriverId &&
+                          booking.status !== "cancelled" && (
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={
+                                  selectedDriverForBooking[booking.id] || ""
+                                }
+                                onChange={(e) =>
+                                  setSelectedDriverForBooking((prev) => ({
+                                    ...prev,
+                                    [booking.id]: e.target.value,
+                                  }))
+                                }
+                                className="bg-slate-700 text-white px-3 py-1 rounded text-sm border border-slate-600 focus:border-blue-500 focus:outline-none"
+                                disabled={assigningBookingId === booking.id}
+                              >
+                                <option value="">Select Driver</option>
+                                {drivers.map((driver) => (
+                                  <option key={driver.id} value={driver.id}>
+                                    {driver.name || driver.username}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => handleAssignDriver(booking.id)}
+                                disabled={
+                                  !selectedDriverForBooking[booking.id] ||
+                                  assigningBookingId === booking.id
+                                }
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {assigningBookingId === booking.id ? (
+                                  <i className="fas fa-spinner fa-spin"></i>
+                                ) : (
+                                  "Assign"
+                                )}
+                              </button>
+                            </div>
+                          )}
+                      </div>
+
+                      {booking.purpose && (
+                        <div className="mt-2 pt-2 border-t border-slate-700">
+                          <p className="text-xs text-slate-400">Purpose:</p>
+                          <p className="text-white text-sm">
+                            {booking.purpose}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <i className="fas fa-calendar-times text-slate-600 text-6xl mb-4"></i>
+                    <p className="text-slate-400 text-lg">No bookings yet</p>
+                    <p className="text-slate-500 text-sm mt-2">
+                      Customer bookings will appear here
+                    </p>
+                  </div>
+                )}
+
+                {bookings.length > 5 && (
+                  <div className="text-center pt-4">
+                    <a
+                      href="/route-assignment"
+                      className="text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      View all {bookings.length} bookings →
+                    </a>
+                  </div>
+                )}
+              </div>
+            </CardSpotlight>
+          </motion.div>
+        </section>
+
         {/* Routes Section */}
         <section id="routes" className="mb-8">
           <motion.div
@@ -1249,20 +1616,21 @@ const FleetDashboard = () => {
                     setSubmitMessage({ type: "", text: "" });
 
                     const formData = new FormData(e.target);
+                    const selectedDriver = drivers.find(
+                      (d) => d.id === formData.get("driverId")
+                    );
                     const routeData = {
-                      startLocation: {
-                        address: formData.get("startAddress"),
-                        latitude: parseFloat(formData.get("startLat")),
-                        longitude: parseFloat(formData.get("startLng")),
-                      },
-                      endLocation: {
-                        address: formData.get("endAddress"),
-                        latitude: parseFloat(formData.get("endLat")),
-                        longitude: parseFloat(formData.get("endLng")),
-                      },
-                      distance: parseFloat(formData.get("distance")) || null,
-                      duration: parseInt(formData.get("duration")) || null,
-                      status: "unassigned",
+                      driverId: formData.get("driverId"),
+                      driverName:
+                        selectedDriver?.name || selectedDriver?.username,
+                      driverUsername: selectedDriver?.username,
+                      startLocationName: formData.get("startAddress"),
+                      endLocationName: formData.get("endAddress"),
+                      distance: parseFloat(formData.get("distance")) || 0,
+                      estimatedDuration:
+                        parseInt(formData.get("duration")) || 0,
+                      createdByUsername:
+                        currentUser?.username || "fleet_manager",
                     };
 
                     try {
@@ -1290,6 +1658,24 @@ const FleetDashboard = () => {
                   }}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-400 text-sm mb-2">
+                        Select Driver *
+                      </label>
+                      <select
+                        name="driverId"
+                        required
+                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
+                      >
+                        <option value="">-- Select a Driver --</option>
+                        {drivers.map((driver) => (
+                          <option key={driver.id} value={driver.id}>
+                            {driver.name || driver.username} -{" "}
+                            {driver.licenseNumber}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div>
                       <label className="block text-slate-400 text-sm mb-2">
                         Start Address *
@@ -1316,60 +1702,12 @@ const FleetDashboard = () => {
                     </div>
                     <div>
                       <label className="block text-slate-400 text-sm mb-2">
-                        Start Latitude
-                      </label>
-                      <input
-                        type="number"
-                        name="startLat"
-                        step="any"
-                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
-                        placeholder="e.g. 40.7128"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 text-sm mb-2">
-                        Start Longitude
-                      </label>
-                      <input
-                        type="number"
-                        name="startLng"
-                        step="any"
-                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
-                        placeholder="e.g. -74.0060"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 text-sm mb-2">
-                        End Latitude
-                      </label>
-                      <input
-                        type="number"
-                        name="endLat"
-                        step="any"
-                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
-                        placeholder="e.g. 40.7589"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 text-sm mb-2">
-                        End Longitude
-                      </label>
-                      <input
-                        type="number"
-                        name="endLng"
-                        step="any"
-                        className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
-                        placeholder="e.g. -73.9851"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 text-sm mb-2">
                         Distance (km)
                       </label>
                       <input
                         type="number"
                         name="distance"
-                        step="any"
+                        step="0.1"
                         className="w-full bg-slate-800 text-white border border-slate-700 rounded px-3 py-2 focus:border-orange-500 focus:outline-none"
                         placeholder="e.g. 15.5"
                       />
