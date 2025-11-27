@@ -66,6 +66,11 @@ export const driversAPI = {
   create: (data) => api.post("/drivers", data),
   update: (id, data) => api.put(`/drivers/${id}`, data),
   delete: (id) => api.delete(`/drivers/${id}`),
+  updateLocation: (id, locationData) =>
+    api.post(`/drivers/${id}/update-location`, locationData),
+  getLiveTracking: () => api.get("/drivers/live-tracking"),
+  toggleGps: (id, gpsEnabled) =>
+    api.post(`/drivers/${id}/toggle-gps`, { gpsEnabled }),
 };
 
 // Telemetry API

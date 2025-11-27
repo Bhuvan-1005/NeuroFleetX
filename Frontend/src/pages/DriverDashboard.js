@@ -7,7 +7,12 @@ import Particles from "../components/Particles";
 import Map from "../components/Map";
 import { CardSpotlight } from "../components/ui/CardEffects";
 import { motion } from "framer-motion";
-import { vehiclesAPI, routesAPI, bookingsAPI } from "../services/api";
+import {
+  vehiclesAPI,
+  routesAPI,
+  bookingsAPI,
+  driversAPI,
+} from "../services/api";
 
 const DriverDashboard = () => {
   const { currentUser, logout } = useAuth();
@@ -367,7 +372,26 @@ const DriverDashboard = () => {
                     <input
                       type="checkbox"
                       checked={trackingEnabled}
-                      onChange={(e) => setTrackingEnabled(e.target.checked)}
+                      onChange={async (e) => {
+                        const enabled = e.target.checked;
+                        setTrackingEnabled(enabled);
+                        // Update GPS status on backend
+                        if (driverInfo?.id) {
+                          try {
+                            await driversAPI.toggleGps(driverInfo.id, enabled);
+                            console.log(
+                              `GPS ${
+                                enabled ? "enabled" : "disabled"
+                              } on backend`
+                            );
+                          } catch (error) {
+                            console.error(
+                              "Failed to update GPS status:",
+                              error
+                            );
+                          }
+                        }
+                      }}
                       className="w-5 h-5 cursor-pointer"
                     />
                     <span className="text-slate-300">
@@ -988,12 +1012,10 @@ const DriverDashboard = () => {
       )}
 
       {/* Location Tracker Component */}
-      {trackingEnabled && driverInfo && selectedVehicle && (
+      {trackingEnabled && driverInfo && (
         <LocationTracker
           driverId={driverInfo.id || driverInfo._id || "demo-driver"}
-          vehicleId={
-            selectedVehicle.id || selectedVehicle._id || "demo-vehicle"
-          }
+          vehicleId={selectedVehicle?.id || selectedVehicle?._id || null}
           updateInterval={30000} // 30 seconds
           enabled={trackingEnabled}
         />

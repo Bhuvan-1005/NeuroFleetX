@@ -20,53 +20,15 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-// Custom vehicle icon with status colors
-const createVehicleIcon = (status = "active", speed = 0) => {
-  const colors = {
-    active: "#4CAF50",
-    maintenance: "#FF9800",
-    inactive: "#9E9E9E",
-  };
-  const color = colors[status] || colors.active;
-  const isMoving = speed > 5;
-
-  return new L.DivIcon({
-    className: "custom-vehicle-marker",
-    html: `<div style="
-      position: relative;
-      font-size: 32px;
-      text-align: center;
-      line-height: 1;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
-    ">
-      🚗
-      <div style="
-        position: absolute;
-        bottom: -8px;
-        right: -8px;
-        width: 12px;
-        height: 12px;
-        background: ${color};
-        border: 2px solid white;
-        border-radius: 50%;
-        box-shadow: 0 0 ${isMoving ? "8px" : "4px"} ${color};
-        ${isMoving ? "animation: pulse 1.5s infinite;" : ""}
-      "></div>
-    </div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
-  });
-};
-
 // Custom driver icon
-const createDriverIcon = (status = "active") => {
+const createDriverIcon = (status = "active", gpsEnabled = false, speed = 0) => {
   const colors = {
     active: "#2196F3",
     "on-break": "#FF9800",
     inactive: "#9E9E9E",
   };
-  const color = colors[status] || colors.active;
+  const color = gpsEnabled ? "#4CAF50" : colors[status] || colors.active;
+  const isMoving = speed > 5; // eslint-disable-line no-unused-vars
 
   return new L.DivIcon({
     className: "custom-driver-marker",
@@ -87,8 +49,28 @@ const createDriverIcon = (status = "active") => {
         background: ${color};
         border: 2px solid white;
         border-radius: 50%;
-        box-shadow: 0 0 4px ${color};
+        box-shadow: 0 0 ${gpsEnabled ? "8px" : "4px"} ${color};
+        ${gpsEnabled ? "animation: pulse 1.5s infinite;" : ""}
       "></div>
+      ${
+        gpsEnabled
+          ? `<div style="
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        font-size: 12px;
+        background: #4CAF50;
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      ">📡</div>`
+          : ""
+      }
     </div>`,
     iconSize: [28, 28],
     iconAnchor: [14, 28],
@@ -161,14 +143,18 @@ const defaultCenter = {
   lng: 80.2707, // Chennai longitude
 };
 
-const FleetMap = ({ vehicles = [], drivers = [], telemetryRecords = [] }) => {
+const FleetMap = ({
+  vehicles = [],
+  drivers = [],
+  telemetryRecords = [],
+  showOnlyGpsEnabled = false,
+}) => {
   const [selectedStyle, setSelectedStyle] = useState("standard");
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showDrivers, setShowDrivers] = useState(true);
-  const [showVehicles, setShowVehicles] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showRoutes, setShowRoutes] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -260,74 +246,40 @@ const FleetMap = ({ vehicles = [], drivers = [], telemetryRecords = [] }) => {
     return R * c;
   };
 
-  // Get vehicle locations from database (fixed positions)
-  const vehicleLocations = vehicles.map((vehicle, index) => {
-    // Always use stored coordinates from database
-    let lat, lng;
-    if (vehicle.latitude && vehicle.longitude) {
-      // Use fixed coordinates from vehicle data
-      lat = parseFloat(vehicle.latitude);
-      lng = parseFloat(vehicle.longitude);
-    } else {
-      // Fallback to demo data if no coordinates stored
-      const offsetLat = (Math.random() - 0.5) * 0.1;
-      const offsetLng = (Math.random() - 0.5) * 0.1;
-      lat = defaultCenter.lat + offsetLat;
-      lng = defaultCenter.lng + offsetLng;
+  // Get driver locations from database - only show drivers with actual GPS coordinates
+  const driverLocations = drivers
+    .filter((driver) => {
+      // Only show drivers with valid coordinates (no random fallback)
+      return driver.latitude && driver.longitude;
+    })
+    .map((driver, index) => {
+      const lat = parseFloat(driver.latitude);
+      const lng = parseFloat(driver.longitude);
+
+      return {
+        id: driver.id || `driver-${index}`,
+        position: [lat, lng],
+        driverInfo: driver,
+        gpsEnabled: driver.gpsEnabled || false,
+        speed: driver.currentSpeed || 0,
+        lastUpdate: driver.lastLocationUpdate,
+      };
+    })
+    .filter(Boolean); // Remove null entries
+
+  // Determine map center - prioritize GPS-enabled drivers if available
+  const mapCenter = (() => {
+    // First priority: GPS-enabled drivers
+    if (driverLocations.length > 0 && driverLocations[0].gpsEnabled) {
+      return driverLocations[0].position;
     }
-
-    // Find associated driver for this vehicle
-    const driver = drivers.find((d) => d.assignedVehicle === vehicle.id);
-
-    return {
-      id: vehicle.id || `vehicle-${index}`,
-      position: [lat, lng],
-      vehicleInfo: vehicle,
-      driverInfo: driver || null,
-      speed: 0, // Static position, no speed
-      recordedAt: new Date().toISOString(),
-    };
-  });
-
-  // Get driver locations from database (fixed positions)
-  const driverLocations = drivers.map((driver, index) => {
-    // Always use stored coordinates from database
-    let lat, lng;
-    if (driver.latitude && driver.longitude) {
-      // Use fixed coordinates from driver data
-      lat = parseFloat(driver.latitude);
-      lng = parseFloat(driver.longitude);
-    } else {
-      // Fallback to demo data if no coordinates stored
-      const offsetLat = (Math.random() - 0.5) * 0.08;
-      const offsetLng = (Math.random() - 0.5) * 0.08;
-      lat = defaultCenter.lat + offsetLat;
-      lng = defaultCenter.lng + offsetLng;
+    // Second priority: any drivers
+    if (driverLocations.length > 0) {
+      return driverLocations[0].position;
     }
-
-    return {
-      id: driver.id || `driver-${index}`,
-      position: [lat, lng],
-      driverInfo: driver,
-    };
-  });
-
-  // Filter locations based on search
-  const filteredVehicleLocations = vehicleLocations.filter((loc) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      loc.vehicleInfo?.model?.toLowerCase().includes(query) ||
-      loc.vehicleInfo?.vin?.toLowerCase().includes(query) ||
-      loc.driverInfo?.name?.toLowerCase().includes(query)
-    );
-  });
-
-  // Determine map center
-  const mapCenter =
-    vehicleLocations.length > 0
-      ? vehicleLocations[0].position
-      : [defaultCenter.lat, defaultCenter.lng];
+    // Default center
+    return [defaultCenter.lat, defaultCenter.lng];
+  })();
 
   const currentStyle = tileStyles[selectedStyle];
 
@@ -360,7 +312,7 @@ const FleetMap = ({ vehicles = [], drivers = [], telemetryRecords = [] }) => {
         <div style={{ marginBottom: "10px" }}>
           <input
             type="text"
-            placeholder="Search vehicles, drivers..."
+            placeholder="Search drivers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
@@ -371,33 +323,10 @@ const FleetMap = ({ vehicles = [], drivers = [], telemetryRecords = [] }) => {
               fontSize: "14px",
             }}
           />
-          {searchQuery && (
-            <small style={{ color: "#666", fontSize: "12px" }}>
-              Showing {filteredVehicleLocations.length} of{" "}
-              {vehicleLocations.length} vehicles
-            </small>
-          )}
         </div>
 
         {/* Toggle Controls */}
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              cursor: "pointer",
-              fontSize: "14px",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={showVehicles}
-              onChange={(e) => setShowVehicles(e.target.checked)}
-              style={{ marginRight: "8px" }}
-            />
-            🚗 Show Vehicles ({vehicleLocations.length})
-          </label>
-
           <label
             style={{
               display: "flex",
@@ -413,6 +342,17 @@ const FleetMap = ({ vehicles = [], drivers = [], telemetryRecords = [] }) => {
               style={{ marginRight: "8px" }}
             />
             👤 Show Drivers ({driverLocations.length})
+            {showOnlyGpsEnabled && driverLocations.length > 0 && (
+              <span
+                style={{
+                  marginLeft: "5px",
+                  color: "#4CAF50",
+                  fontSize: "12px",
+                }}
+              >
+                📡 LIVE
+              </span>
+            )}
           </label>
 
           <label
@@ -636,115 +576,17 @@ const FleetMap = ({ vehicles = [], drivers = [], telemetryRecords = [] }) => {
           </Marker>
         )}
 
-        {/* Vehicle Markers */}
-        {showVehicles &&
-          filteredVehicleLocations.map((location) => (
-            <Marker
-              key={location.id}
-              position={location.position}
-              icon={createVehicleIcon(
-                location.vehicleInfo?.status || "active",
-                location.speed || 0
-              )}
-              eventHandlers={{
-                click: () => setSelectedVehicle(location),
-              }}
-            >
-              <Popup>
-                <div
-                  style={{ minWidth: "200px", fontFamily: "Arial, sans-serif" }}
-                >
-                  <h3
-                    style={{
-                      margin: "0 0 10px 0",
-                      color: "#1a1a1a",
-                      fontSize: "16px",
-                      borderBottom: "2px solid #4CAF50",
-                      paddingBottom: "5px",
-                    }}
-                  >
-                    🚗 Vehicle Information
-                  </h3>
-                  <div style={{ fontSize: "13px", color: "#333" }}>
-                    <p style={{ margin: "8px 0" }}>
-                      <strong style={{ color: "#555" }}>Vehicle:</strong>{" "}
-                      {location.vehicleInfo?.model || "Unknown"}
-                    </p>
-                    <p style={{ margin: "8px 0" }}>
-                      <strong style={{ color: "#555" }}>VIN:</strong>{" "}
-                      {location.vehicleInfo?.vin || "N/A"}
-                    </p>
-                    <p style={{ margin: "8px 0" }}>
-                      <strong style={{ color: "#555" }}>Driver:</strong>{" "}
-                      {location.driverInfo?.name || "Unknown"}
-                    </p>
-                    <p style={{ margin: "8px 0" }}>
-                      <strong style={{ color: "#555" }}>Speed:</strong>{" "}
-                      <span style={{ color: "#2196F3", fontWeight: "bold" }}>
-                        {location.speed || 0} km/h
-                      </span>
-                    </p>
-                    <p style={{ margin: "8px 0" }}>
-                      <strong style={{ color: "#555" }}>Status:</strong>
-                      <span
-                        style={{
-                          color:
-                            location.vehicleInfo?.status === "active"
-                              ? "#4CAF50"
-                              : "#FF9800",
-                          fontWeight: "bold",
-                          marginLeft: "5px",
-                        }}
-                      >
-                        {location.vehicleInfo?.status || "Active"}
-                      </span>
-                    </p>
-                    <p
-                      style={{
-                        margin: "8px 0 0 0",
-                        fontSize: "11px",
-                        color: "#666",
-                        paddingTop: "8px",
-                        borderTop: "1px solid #eee",
-                      }}
-                    >
-                      <strong>Last updated:</strong>
-                      <br />
-                      {location.recordedAt
-                        ? new Date(location.recordedAt).toLocaleString()
-                        : "N/A"}
-                    </p>
-                    {userLocation && (
-                      <p
-                        style={{
-                          margin: "8px 0 0 0",
-                          fontSize: "11px",
-                          color: "#2196F3",
-                        }}
-                      >
-                        <strong>Distance from you:</strong>{" "}
-                        {calculateDistance(
-                          userLocation.lat,
-                          userLocation.lng,
-                          location.position[0],
-                          location.position[1]
-                        ).toFixed(2)}{" "}
-                        km
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-
         {/* Driver Markers */}
         {showDrivers &&
           driverLocations.map((location) => (
             <Marker
               key={location.id}
               position={location.position}
-              icon={createDriverIcon(location.driverInfo?.status || "active")}
+              icon={createDriverIcon(
+                location.driverInfo?.status || "active",
+                location.gpsEnabled || false,
+                location.speed || 0
+              )}
             >
               <Popup>
                 <div
@@ -755,20 +597,55 @@ const FleetMap = ({ vehicles = [], drivers = [], telemetryRecords = [] }) => {
                       margin: "0 0 10px 0",
                       color: "#1a1a1a",
                       fontSize: "16px",
-                      borderBottom: "2px solid #2196F3",
+                      borderBottom: `2px solid ${
+                        location.gpsEnabled ? "#4CAF50" : "#2196F3"
+                      }`,
                       paddingBottom: "5px",
                     }}
                   >
                     👤 Driver Information
+                    {location.gpsEnabled && (
+                      <span
+                        style={{
+                          marginLeft: "8px",
+                          fontSize: "12px",
+                          color: "#4CAF50",
+                        }}
+                      >
+                        📡 LIVE
+                      </span>
+                    )}
                   </h3>
                   <div style={{ fontSize: "13px", color: "#333" }}>
                     <p style={{ margin: "8px 0" }}>
                       <strong style={{ color: "#555" }}>Name:</strong>{" "}
-                      {location.driverInfo?.name || "Unknown"}
+                      {location.driverInfo?.name ||
+                        location.driverInfo?.username ||
+                        "Unknown"}
                     </p>
                     <p style={{ margin: "8px 0" }}>
                       <strong style={{ color: "#555" }}>License:</strong>{" "}
                       {location.driverInfo?.licenseNumber || "N/A"}
+                    </p>
+                    {location.gpsEnabled && (
+                      <p style={{ margin: "8px 0" }}>
+                        <strong style={{ color: "#555" }}>Speed:</strong>{" "}
+                        <span style={{ color: "#2196F3", fontWeight: "bold" }}>
+                          {(location.speed || 0).toFixed(1)} km/h
+                        </span>
+                      </p>
+                    )}
+                    <p style={{ margin: "8px 0" }}>
+                      <strong style={{ color: "#555" }}>GPS:</strong>
+                      <span
+                        style={{
+                          color: location.gpsEnabled ? "#4CAF50" : "#9E9E9E",
+                          fontWeight: "bold",
+                          marginLeft: "5px",
+                        }}
+                      >
+                        {location.gpsEnabled ? "🟢 Active" : "⚫ Inactive"}
+                      </span>
                     </p>
                     <p style={{ margin: "8px 0" }}>
                       <strong style={{ color: "#555" }}>Status:</strong>
@@ -791,6 +668,20 @@ const FleetMap = ({ vehicles = [], drivers = [], telemetryRecords = [] }) => {
                         {location.driverInfo?.rating || "N/A"} ⭐
                       </span>
                     </p>
+                    {location.lastUpdate && (
+                      <p
+                        style={{
+                          margin: "8px 0 0 0",
+                          fontSize: "11px",
+                          color: "#666",
+                          paddingTop: "8px",
+                          borderTop: "1px solid #eee",
+                        }}
+                      >
+                        <strong>Last update:</strong>{" "}
+                        {new Date(location.lastUpdate).toLocaleString()}
+                      </p>
+                    )}
                     {userLocation && (
                       <p
                         style={{

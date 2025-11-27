@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { telemetryAPI } from "../services/api";
+import { telemetryAPI, driversAPI } from "../services/api";
 
 const LocationTracker = ({
   driverId,
@@ -24,14 +24,16 @@ const LocationTracker = ({
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
+          const speed = position.coords.speed
+            ? Math.abs(position.coords.speed * 3.6)
+            : 0; // Convert m/s to km/h
+
           const locationData = {
             driverId: driverId,
             vehicleId: vehicleId,
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
-            speed: position.coords.speed
-              ? Math.abs(position.coords.speed * 3.6)
-              : 0, // Convert m/s to km/h
+            speed: speed,
             accuracy: position.coords.accuracy,
             timestamp: new Date().toISOString(),
           };
@@ -43,8 +45,18 @@ const LocationTracker = ({
             accuracy: position.coords.accuracy,
           });
 
-          // Send to server
+          // Send to telemetry server
           await telemetryAPI.updateLocation(locationData);
+
+          // Also update driver's live location in the database
+          if (driverId) {
+            await driversAPI.updateLocation(driverId, {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              speed: speed,
+              gpsEnabled: true,
+            });
+          }
 
           setLastUpdate(new Date());
           setError(null);
@@ -68,7 +80,7 @@ const LocationTracker = ({
 
   // Start tracking
   useEffect(() => {
-    if (enabled && driverId && vehicleId) {
+    if (enabled && driverId) {
       setIsTracking(true);
 
       // Send immediate update

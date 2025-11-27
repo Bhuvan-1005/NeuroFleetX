@@ -205,3 +205,31 @@
     font-size: 12px;
   }
 }
+
+/* GPS Live tracking pulse animation for driver markers */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+  }
+}
+
+/* GPS enabled driver marker styles */
+.custom-driver-marker.gps-enabled {
+  animation: markerPulse 2s infinite;
+}
+
+@keyframes markerPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 2px 8px rgba(76, 175, 80, 0.8));
+  }
+}

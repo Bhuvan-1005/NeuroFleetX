@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useData } from "../context/DataContext";
 import Navbar from "../components/Navbar";
@@ -23,6 +23,7 @@ const FleetDashboard = () => {
   const [bookings, setBookings] = useState([]);
   const [assigningBookingId, setAssigningBookingId] = useState(null);
   const [selectedDriverForBooking, setSelectedDriverForBooking] = useState({});
+  const [liveDrivers, setLiveDrivers] = useState([]);
 
   // Modal states
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -47,6 +48,29 @@ const FleetDashboard = () => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Fetch live GPS-enabled drivers
+  const fetchLiveDrivers = useCallback(async () => {
+    try {
+      const response = await driversAPI.getLiveTracking();
+      const liveData = response.data?.data || response.data || [];
+      setLiveDrivers(liveData);
+      console.log(
+        "📍 Live drivers updated:",
+        liveData.length,
+        "drivers with GPS enabled"
+      );
+    } catch (error) {
+      console.error("Error fetching live drivers:", error);
+    }
+  }, []);
+
+  // Load live drivers on mount and refresh every 10 seconds
+  useEffect(() => {
+    fetchLiveDrivers();
+    const interval = setInterval(fetchLiveDrivers, 10000); // Refresh every 10 seconds
+    return () => clearInterval(interval);
+  }, [fetchLiveDrivers]);
 
   // Load settings from localStorage
   useEffect(() => {
@@ -469,14 +493,30 @@ const FleetDashboard = () => {
               </div>
               <h4 className="text-2xl font-bold text-white">
                 Live Fleet Tracking
+                {liveDrivers.length > 0 && (
+                  <span className="ml-3 text-sm font-normal text-green-400">
+                    ({liveDrivers.length} driver
+                    {liveDrivers.length !== 1 ? "s" : ""} with GPS active)
+                  </span>
+                )}
               </h4>
             </div>
             <div className="bg-slate-900/50 rounded-lg overflow-hidden border border-slate-700">
               <Map
                 vehicles={vehicles}
-                drivers={drivers}
+                drivers={liveDrivers.length > 0 ? liveDrivers : drivers}
                 telemetryRecords={telemetryRecords}
+                showOnlyGpsEnabled={false}
               />
+              {liveDrivers.length === 0 && (
+                <div className="p-4 bg-yellow-500/10 border-t border-yellow-500/30 text-yellow-400 text-sm">
+                  <i className="fas fa-info-circle mr-2"></i>
+                  <strong>No live GPS data available.</strong> Drivers need to:
+                  <span className="ml-2">1) Login to Driver Dashboard</span>
+                  <span className="ml-2">2) Enable GPS Tracking</span>
+                  <span className="ml-2">3) Allow browser location access</span>
+                </div>
+              )}
             </div>
           </CardSpotlight>
         </motion.section>
@@ -929,6 +969,71 @@ const FleetDashboard = () => {
                           <i className="fas fa-star text-yellow-400"></i>
                           <span>Rating: {d.rating || "4.5"} ⭐</span>
                         </div>
+                        <div className="flex items-center gap-2 text-slate-300 text-sm">
+                          <i
+                            className={`fas fa-map-marker-alt ${
+                              d.gpsEnabled ? "text-green-400" : "text-gray-400"
+                            }`}
+                          ></i>
+                          <span>
+                            GPS:{" "}
+                            {d.gpsEnabled ? (
+                              <span className="text-green-400">Active 📡</span>
+                            ) : (
+                              <span className="text-gray-400">Inactive</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={() => {
+                            if (d.latitude && d.longitude) {
+                              // Scroll to map and show driver location
+                              const mapSection = document.getElementById("map");
+                              if (mapSection) {
+                                mapSection.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "start",
+                                });
+                              }
+                              // Show location details
+                              alert(
+                                `📍 ${d.name}'s Location\n\n` +
+                                  `Latitude: ${d.latitude}\n` +
+                                  `Longitude: ${d.longitude}\n` +
+                                  `Speed: ${d.currentSpeed || 0} km/h\n` +
+                                  `GPS: ${
+                                    d.gpsEnabled ? "Active" : "Inactive"
+                                  }\n` +
+                                  `Last Update: ${
+                                    d.lastLocationUpdate
+                                      ? new Date(
+                                          d.lastLocationUpdate
+                                        ).toLocaleString()
+                                      : "N/A"
+                                  }`
+                              );
+                            } else {
+                              alert(
+                                `❌ ${d.name}'s location is not available.\n\n` +
+                                  `The driver needs to:\n` +
+                                  `1. Login to their Driver Dashboard\n` +
+                                  `2. Enable GPS Tracking\n` +
+                                  `3. Allow browser location access`
+                              );
+                            }
+                          }}
+                          className={`flex-1 ${
+                            d.latitude && d.longitude
+                              ? "bg-green-600 hover:bg-green-700"
+                              : "bg-gray-600 hover:bg-gray-700"
+                          } text-white px-3 py-2 rounded text-sm transition-all`}
+                        >
+                          <i className="fas fa-map-marker-alt mr-1"></i>
+                          {d.latitude && d.longitude ? "Locate" : "No GPS"}
+                        </button>
                       </div>
 
                       <div className="flex gap-2">

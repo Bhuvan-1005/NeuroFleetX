@@ -20,6 +20,9 @@ public class Driver {
     private Double rating = 5.0;
     private Double latitude;
     private Double longitude;
+    private Boolean gpsEnabled = false;
+    private LocalDateTime lastLocationUpdate;
+    private Double currentSpeed = 0.0;
     private LocalDateTime createdAt;
     
     // Constructors
@@ -129,5 +132,29 @@ public class Driver {
     
     public void setLongitude(Double longitude) {
         this.longitude = longitude;
+    }
+
+    public Boolean getGpsEnabled() {
+        return gpsEnabled;
+    }
+
+    public void setGpsEnabled(Boolean gpsEnabled) {
+        this.gpsEnabled = gpsEnabled;
+    }
+
+    public LocalDateTime getLastLocationUpdate() {
+        return lastLocationUpdate;
+    }
+
+    public void setLastLocationUpdate(LocalDateTime lastLocationUpdate) {
+        this.lastLocationUpdate = lastLocationUpdate;
+    }
+
+    public Double getCurrentSpeed() {
+        return currentSpeed;
+    }
+
+    public void setCurrentSpeed(Double currentSpeed) {
+        this.currentSpeed = currentSpeed;
     }
 }
